@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  app:
+    restart: unless-stopped
+    image: desaas.azurecr.io/proposals-app:latest
+    container_name: proposals-api
+    ports:
+      - 8000:8000
+    volumes:
+      - ./static:/app/static
+      - ./media:/app/media
+      - ./entrypoint.sh:/app/entrypoint.sh
+    command: ./entrypoint.sh
+    env_file: .env
+    depends_on:
+      - redis
+  redis:
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+    image: redis:5-alpine
+    volumes:
+      - redis_data:/data
+  celery:
+    restart: unless-stopped
+    container_name: proposals-celery
+    image: desaas.azurecr.io/proposals-celery:latest
+    command: celery -A src worker -l INFO -f logs/celery.log
+    env_file: .env
+    volumes:
+      - ./static:/app/static
+      - ./media:/app/media
+      - ./logs:/app/logs
+  celery-beat:
+    restart: unless-stopped
+    container_name: proposals-celery-beat
+    image: desaas.azurecr.io/proposals-celery-beat:latest
+    command: celery -A src beat -l INFO
+    env_file: .env
+    volumes:
+      - ./static:/app/static
+      - ./media:/app/media
+      - ./logs:/app/logs
+
+volumes:
+  static:
+    driver: local
+  media:
+    driver: local
+  logs:
+    driver: local
+  redis_data:
+    driver: local

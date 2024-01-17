@@ -1,0 +1,27 @@
+.env
+
+__pycache__
+
+*/__pycache__/
+**/*/__pycache__/
+
+sqltools_*
+
+# System Files
+.DS_Store
+/.DS_Store
+Thumbs.db
+
+.vscode/
+
+/static/
+/media
+
+.coverage
+
+celerybeat-schedule.db
+
+*.swp
+*.swo
+
+venv

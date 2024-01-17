@@ -1,0 +1,68 @@
+name: run python linter and tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: github_actions
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pipenv'
+
+      - name: Install pipenv
+        run: |
+          curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+          sudo apt-get update
+          sudo apt-get install gdal-bin libgdal-dev
+
+      - name: Install dependencies
+        run: pipenv install
+
+      - name: Lint with flake8
+        run: pipenv run flake8 --statistics
+
+      - name: Run unit tests
+        env:
+          DB_NAME: github_actions
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DJANGO_SETTINGS_MODULE: src.settings.local
+          CELERY_BROKER: redis://localhost:6379
+          REDIS_HOST: redis://localhost:6379
+          SECRET_KEY: django-test-key
+        run: pipenv run coverage run manage.py test apps

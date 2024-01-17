@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis
+    hostname: database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: proposals
+      POSTGRES_USER: proposals
+      POSTGRES_PASSWORD: 1
+    ports:
+      - 5432:5432
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    networks:
+      - default
+  app:
+    restart: unless-stopped
+    build: .
+    image: proposals-app
+    container_name: proposals-api
+    ports:
+      - 8000:8000
+    volumes:
+      - static:/app/static
+      - media:/app/media
+    command: ./entrypoint.sh
+    depends_on:
+      - redis
+  redis:
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+    image: redis:5-alpine
+    volumes:
+      - redis_data:/data
+  celery:
+    restart: unless-stopped
+    container_name: proposals-celery
+    image: proposals-celery
+    build: .
+    command: celery -A src worker -l INFO -f logs/celery.log
+    volumes:
+      - static:/app/static
+      - media:/app/media
+      - logs:/app/logs
+  celery-beat:
+    restart: unless-stopped
+    container_name: proposals-celery-beat
+    image: proposals-celery-beat
+    build: .
+    command: celery -A src beat -l INFO
+    volumes:
+      - static:/app/static
+      - media:/app/media
+      - logs:/app/logs
+volumes:
+  static:
+  media:
+  logs:
+  redis_data:
+    driver: local
+  database_data:
+    driver: local
