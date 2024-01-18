@@ -3,8 +3,8 @@ version: '3.8'
 services:
   app:
     restart: unless-stopped
-    image: desaas.azurecr.io/proposals-app:latest
-    container_name: proposals-api
+    image: desaas.azurecr.io/reports-app:latest
+    container_name: reports-api
     ports:
       - 8000:8000
     volumes:
@@ -24,8 +24,8 @@ services:
       - redis_data:/data
   celery:
     restart: unless-stopped
-    container_name: proposals-celery
-    image: desaas.azurecr.io/proposals-celery:latest
+    container_name: reports-celery
+    image: desaas.azurecr.io/reports-celery:latest
     command: celery -A src worker -l INFO -f logs/celery.log
     env_file: .env
     volumes:
@@ -34,8 +34,8 @@ services:
       - ./logs:/app/logs
   celery-beat:
     restart: unless-stopped
-    container_name: proposals-celery-beat
-    image: desaas.azurecr.io/proposals-celery-beat:latest
+    container_name: reports-celery-beat
+    image: desaas.azurecr.io/reports-celery-beat:latest
     command: celery -A src beat -l INFO
     env_file: .env
     volumes:

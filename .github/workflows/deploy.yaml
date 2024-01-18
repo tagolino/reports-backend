@@ -15,9 +15,9 @@ jobs:
       - name: Build docker images
         run: |
           docker-compose build
-          docker tag proposals-app:latest desaas.azurecr.io/proposals-app:latest
-          docker tag proposals-celery:latest desaas.azurecr.io/proposals-celery:latest
-          docker tag proposals-celery-beat:latest desaas.azurecr.io/proposals-celery-beat:latest
+          docker tag reports-app:latest desaas.azurecr.io/reports-app:latest
+          docker tag reports-celery:latest desaas.azurecr.io/reports-celery:latest
+          docker tag reports-celery-beat:latest desaas.azurecr.io/reports-celery-beat:latest
 
       - name: Login in azure container registry
         uses: azure/docker-login@v1
@@ -28,9 +28,9 @@ jobs:
 
       - name: Push docker images
         run: |
-          docker push desaas.azurecr.io/proposals-app:latest
-          docker push desaas.azurecr.io/proposals-celery:latest
-          docker push desaas.azurecr.io/proposals-celery-beat:latest
+          docker push desaas.azurecr.io/reports-app:latest
+          docker push desaas.azurecr.io/reports-celery:latest
+          docker push desaas.azurecr.io/reports-celery-beat:latest
 
       - name: Copy deployment configs
         uses: cross-the-world/ssh-scp-ssh-pipelines@latest
@@ -40,17 +40,17 @@ jobs:
           key: ${{ secrets.AZURE_SSH_KEY }}
           port: ${{ secrets.AZURE_SSH_PORT }}
           first_ssh: |-
-            cd /home/azureuser/proposals/
+            cd /home/azureuser/reports/
             docker-compose stop
-            yes | docker kill $(sudo docker ps -q -f name="proposals*") | true
-            docker rm -f $(sudo docker ps -a -q -f name="proposals*") | true
+            yes | docker kill $(sudo docker ps -q -f name="reports*") | true
+            docker rm -f $(sudo docker ps -a -q -f name="reports*") | true
             yes | docker system prune -a
             docker login https://${{ secrets.REGISTRY_SERVER }} -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }}
-            docker pull desaas.azurecr.io/proposals-app:latest
-            docker pull desaas.azurecr.io/proposals-celery:latest
-            docker pull desaas.azurecr.io/proposals-celery-beat:latest
+            docker pull desaas.azurecr.io/reports-app:latest
+            docker pull desaas.azurecr.io/reports-celery:latest
+            docker pull desaas.azurecr.io/reports-celery-beat:latest
           scp: |
-            ./deploy/* => /home/azureuser/proposals/
+            ./deploy/* => /home/azureuser/reports/
           last_ssh: |
-            cd /home/azureuser/proposals/
+            cd /home/azureuser/reports/
             docker compose -f docker-compose.yaml up -d

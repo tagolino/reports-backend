@@ -16,8 +16,8 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://proposals.dgtlpower.com",
-    "http://proposals.dgtlpower.com",
+    "https://reports-backend.dgtlpower.com",
+    "http://reports-backend.dgtlpower.com",
 ]
 
 if os.environ.get("SENTRY_DSN"):

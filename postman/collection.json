@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "e0274180-4955-41a7-b9d1-f8a7a6524b12",
-		"name": "Proposals",
+		"name": "Reports API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "692588"
 	},

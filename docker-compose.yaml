@@ -6,8 +6,8 @@ services:
     hostname: database
     restart: unless-stopped
     environment:
-      POSTGRES_DB: proposals
-      POSTGRES_USER: proposals
+      POSTGRES_DB: reports
+      POSTGRES_USER: reports
       POSTGRES_PASSWORD: 1
     ports:
       - 5432:5432
@@ -18,8 +18,8 @@ services:
   app:
     restart: unless-stopped
     build: .
-    image: proposals-app
-    container_name: proposals-api
+    image: reports-app
+    container_name: reports-api
     ports:
       - 8000:8000
     volumes:
@@ -37,8 +37,8 @@ services:
       - redis_data:/data
   celery:
     restart: unless-stopped
-    container_name: proposals-celery
-    image: proposals-celery
+    container_name: reports-celery
+    image: reports-celery
     build: .
     command: celery -A src worker -l INFO -f logs/celery.log
     volumes:
@@ -47,8 +47,8 @@ services:
       - logs:/app/logs
   celery-beat:
     restart: unless-stopped
-    container_name: proposals-celery-beat
-    image: proposals-celery-beat
+    container_name: reports-celery-beat
+    image: reports-celery-beat
     build: .
     command: celery -A src beat -l INFO
     volumes:
