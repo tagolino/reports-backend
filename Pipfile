@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+carbone-sdk = "*"
 django = "*"
 django-anymail = "*"
 django-redis = "*"
@@ -13,6 +14,7 @@ psycopg2-binary = "*"
 drf-yasg = "*"
 djangorestframework = "*"
 sentry-sdk = "*"
+django-countries = "*"
 djangorestframework-simplejwt = "*"
 django-filter = "*"
 flake8 = "*"

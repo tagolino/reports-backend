@@ -41,9 +41,11 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
+    "django_countries",
     # apps
     "auth",
     "users",
+    "templates",
 ]
 
 MIDDLEWARE = [
@@ -192,3 +194,11 @@ CELERY_BROKER_URL = os.environ["CELERY_BROKER"]
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERYD_TASK_SOFT_TIME_LIMIT = 60
 CELERY_ENABLE_UTC = True
+
+CARBONE_IO_API_URL = os.environ.get(
+    "CARBONE_IO_API_URL", "https://api.carbone.io"
+)
+CARBONE_IO_API_PRODUCTION_TOKEN = os.environ.get(
+    "CARBONE_IO_API_PRODUCTION_TOKEN", ""
+)
+CARBONE_IO_API_TEST_TOKEN = os.environ.get("CARBONE_IO_API_TEST_TOKEN", "")
