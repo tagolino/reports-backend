@@ -3,8 +3,12 @@ from rest_framework import status
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 
-from .serializers import CreateTemplateSerializer, TemplateListSerializer, TemplateDetailsSerializer
-from .models import Template, TemplateFile, TemplateDataMapping
+from .models import Template, TemplateDataMapping, TemplateFile
+from .serializers import (
+    CreateTemplateSerializer,
+    TemplateDetailsSerializer,
+    TemplateListSerializer,
+)
 from .utils import add_template
 
 
@@ -12,9 +16,9 @@ class TemplateView(CreateAPIView, ListAPIView):
     queryset = Template.objects.all()
 
     def get_serializer_class(self):
-        if self.request.method == 'GET':
+        if self.request.method == "GET":
             return TemplateListSerializer
-        elif self.request.method == 'POST':
+        elif self.request.method == "POST":
             return CreateTemplateSerializer
 
     def create(self, request, *args, **kwargs):
@@ -31,7 +35,9 @@ class TemplateView(CreateAPIView, ListAPIView):
             template_file.close()
 
             if response["error"]:
-                return Response(response["error"], status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    response["error"], status=status.HTTP_400_BAD_REQUEST
+                )
 
             return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -58,7 +64,10 @@ class TemplateView(CreateAPIView, ListAPIView):
 
         template_file.close()
 
-        return Response(TemplateDetailsSerializer(new_template_object).data, status=status.HTTP_201_CREATED)
+        return Response(
+            TemplateDetailsSerializer(new_template_object).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class TemplateDetailsView(RetrieveAPIView):

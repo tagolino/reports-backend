@@ -1,5 +1,5 @@
-from django_countries.fields import CountryField
 from django.db import models
+from django_countries.fields import CountryField
 
 
 class Country(models.Model):
@@ -53,7 +53,7 @@ class TemplateFile(models.Model):
     language = models.CharField(choices=LANGUAGE_CHOICES, max_length=32)
     external_id = models.CharField(max_length=100, null=True, blank=True)
     template = models.ForeignKey(
-        Template, on_delete=models.CASCADE, related_name='template_files'
+        Template, on_delete=models.CASCADE, related_name="template_files"
     )
     uploader = models.ForeignKey(
         "users.User", on_delete=models.SET_NULL, null=True
@@ -63,6 +63,4 @@ class TemplateFile(models.Model):
 class TemplateDataMapping(models.Model):
     name = models.CharField(max_length=100)
     mapping_expression = models.TextField(blank=True, null=True)
-    template_file = models.ForeignKey(
-        TemplateFile, on_delete=models.CASCADE
-    )
+    template_file = models.ForeignKey(TemplateFile, on_delete=models.CASCADE)

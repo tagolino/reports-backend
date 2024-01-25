@@ -12,8 +12,14 @@ class TemplateListSerializer(serializers.ModelSerializer):
 class TemplateFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TemplateFile
-        fields = ("id", "name", "created_at", "created_at",
-                  "version", "is_active")
+        fields = (
+            "id",
+            "name",
+            "created_at",
+            "created_at",
+            "version",
+            "is_active",
+        )
 
 
 class TemplateDetailsSerializer(serializers.ModelSerializer):
@@ -21,8 +27,15 @@ class TemplateDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Template
-        fields = ("id", "name", "type", "created_at",
-                  "country", "supplier", "template_files")
+        fields = (
+            "id",
+            "name",
+            "type",
+            "created_at",
+            "country",
+            "supplier",
+            "template_files",
+        )
 
 
 class CreateTemplateSerializer(serializers.Serializer):
