@@ -1,9 +1,9 @@
 {
 	"info": {
-		"_postman_id": "e0274180-4955-41a7-b9d1-f8a7a6524b12",
+		"_postman_id": "d743b20c-3a39-4b29-bfef-0b4bee484392",
 		"name": "Reports API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "692588"
+		"_exporter_id": "27851407"
 	},
 	"item": [
 		{
@@ -28,7 +28,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"susan29@example.com\",\n    \"password\": \"1\"\n}",
+							"raw": "{\n    \"email\": \"admin@dgtlpower.com\",\n    \"password\": \"1\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -43,6 +43,125 @@
 							"path": [
 								"auth",
 								"token",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Templates",
+			"item": [
+				{
+					"name": "Templates List",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/templates/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"templates",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Template Details",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/templates/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"templates",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Template",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "My Template name",
+									"type": "text"
+								},
+								{
+									"key": "expression",
+									"value": "My expression",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "is_active",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "type",
+									"value": "PROPOSAL",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/templates/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"templates",
 								""
 							]
 						}
