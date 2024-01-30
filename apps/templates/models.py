@@ -62,5 +62,5 @@ class TemplateFile(models.Model):
 
 class TemplateDataMapping(models.Model):
     name = models.CharField(max_length=100)
-    mapping_expression = models.TextField(blank=True, null=True)
+    mapping_expression = models.TextField(null=True, blank=True)
     template_file = models.ForeignKey(TemplateFile, on_delete=models.CASCADE)

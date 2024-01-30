@@ -28,7 +28,6 @@ class TemplateView(CreateAPIView, ListAPIView):
         template_type = request.data.get("type")
         template_file = request.data.get("file")
         template_is_active = request.data.get("is_active")
-        template_file_expression = request.data.get("expression")
         response = add_template(template_file)
 
         if not response["success"]:
@@ -57,8 +56,7 @@ class TemplateView(CreateAPIView, ListAPIView):
                 template=new_template_object,
             )
             TemplateDataMapping.objects.create(
-                name="",
-                mapping_expression=template_file_expression,
+                name="One to one mapping",
                 template_file=new_template_file,
             )
 

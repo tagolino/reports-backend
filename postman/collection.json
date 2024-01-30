@@ -134,11 +134,6 @@
 									"type": "text"
 								},
 								{
-									"key": "expression",
-									"value": "My expression",
-									"type": "text"
-								},
-								{
 									"key": "file",
 									"type": "file",
 									"src": []
