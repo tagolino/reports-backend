@@ -40,7 +40,6 @@ class TemplateDetailsSerializer(serializers.ModelSerializer):
 
 class CreateTemplateSerializer(serializers.Serializer):
     name = serializers.CharField()
-    expression = serializers.CharField()
     file = serializers.FileField()
     is_active = serializers.BooleanField()
     type = serializers.CharField()
