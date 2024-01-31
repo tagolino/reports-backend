@@ -1,5 +1,5 @@
 import json
-
+from io import BytesIO
 import pandas
 
 
@@ -10,7 +10,7 @@ def get_file_json_content(uploaded_file):
     if file_extension == "json":
         json_content = file_content.decode("utf-8")
     elif file_extension == "xlsx":
-        json_content = pandas.read_excel(file_content).to_json(
+        json_content = pandas.read_excel(BytesIO(file_content)).to_json(
             orient="records"
         )
 
