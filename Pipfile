@@ -29,6 +29,9 @@ python-dateutil = "*"
 pre-commit = "*"
 python-magic = "*"
 ipython = "*"
+pandas = "*"
+openpyxl = "*"
+pyarrow = "*"
 
 [dev-packages]
 

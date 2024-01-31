@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "auth",
     "users",
     "templates",
+    "documents",
 ]
 
 MIDDLEWARE = [
