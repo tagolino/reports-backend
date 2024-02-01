@@ -31,6 +31,7 @@ urlpatterns = [
     # REST Api
     path("api/v1/", include("auth.urls")),
     path("api/v1/", include("templates.urls")),
+    path("api/v1/", include("documents.urls")),
     # Documentation
     re_path(
         r"^docs/swagger/json/swagger(?P<format>\.json|\.yaml)$",

@@ -130,7 +130,7 @@
 							"formdata": [
 								{
 									"key": "name",
-									"value": "My Template name",
+									"value": "Sample Template",
 									"type": "text"
 								},
 								{
@@ -158,6 +158,115 @@
 							"path": [
 								"templates",
 								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Documents",
+			"item": [
+				{
+					"name": "Documents List",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/documents/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"documents",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Document",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "First document",
+									"type": "text"
+								},
+								{
+									"key": "data_file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "template_id",
+									"value": "1",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/documents/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"documents",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Document Details",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/documents/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"documents",
+								"1"
 							]
 						}
 					},
