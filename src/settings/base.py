@@ -47,6 +47,10 @@ INSTALLED_APPS = [
     "users",
     "templates",
     "documents",
+    "customers",
+    "invoices",
+    "sources",
+    "sources.customer_portal",
 ]
 
 MIDDLEWARE = [
@@ -92,7 +96,23 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
-    }
+    },
+    "data_service": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.environ.get("DS_DB_NAME"),
+        "USER": os.environ.get("DS_USER"),
+        "PASSWORD": os.environ.get("DS_PASSWORD"),
+        "HOST": os.environ.get("DS_HOST"),
+        "PORT": os.environ.get("DS_PORT"),
+    },
+    "customer_portal": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.environ.get("CP_DB_NAME"),
+        "USER": os.environ.get("CP_DB_USER"),
+        "PASSWORD": os.environ.get("CP_DB_PASSWORD"),
+        "HOST": os.environ.get("CP_DB_HOST"),
+        "PORT": os.environ.get("CP_DB_PORT"),
+    },
 }
 
 
