@@ -5,18 +5,24 @@ from django.core.files.base import ContentFile
 from celery import shared_task
 
 from .models import Document, DocumentGenerationRequest
+from .utils import map_data
 
 
 @shared_task
 def process_document_generation_request(document_id):
     document = Document.objects.get(id=document_id)
-    template_id = document.template_data_mapping.template_file.external_id
+    template_data_mapping = document.template_data_mapping
+    mapping_expression = template_data_mapping.mapping_expression
+    template_id = template_data_mapping.template_file.external_id
     csdk = carbone_sdk.CarboneSDK(settings.CARBONE_IO_API_TEST_TOKEN)
 
     for entry in document.generated_documents.all():
+        data = map_data(entry.json_data, mapping_expression)
+        print(data)
         json_data = {
-            "data": entry.json_data,
+            "data": data,
             "convertTo": "pdf",
+            "lang": "en-gb",
         }
 
         try:
