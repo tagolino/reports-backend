@@ -18,7 +18,6 @@ def process_document_generation_request(document_id):
 
     for entry in document.generated_documents.all():
         data = map_data(entry.json_data, mapping_expression)
-        print(data)
         json_data = {
             "data": data,
             "convertTo": "pdf",
