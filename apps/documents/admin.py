@@ -28,7 +28,6 @@ class DocumentGenerationRequestInline(admin.TabularInline):
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
-    model = Document
     list_display = ["id", "name", "created_at"]
     empty_value_display = "-"
     search_fields = [

@@ -11,7 +11,6 @@ class TemplateFileInline(admin.TabularInline):
 
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):
-    model = Template
     list_display = ["id", "name", "type", "created_at"]
     list_filter = ["type"]
     empty_value_display = "-"
@@ -28,7 +27,6 @@ class TemplateDataMappingInline(admin.TabularInline):
 
 @admin.register(TemplateFile)
 class TemplateFileAdmin(admin.ModelAdmin):
-    model = TemplateFile
     list_display = ["id", "name", "version", "created_at", "is_active"]
     list_filter = ["template"]
     empty_value_display = "-"
