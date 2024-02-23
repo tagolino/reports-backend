@@ -32,6 +32,7 @@ ipython = "*"
 pandas = "*"
 openpyxl = "*"
 pyarrow = "*"
+jmespath = "*"
 
 [dev-packages]
 

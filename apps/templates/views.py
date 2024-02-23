@@ -54,6 +54,7 @@ class TemplateView(CreateAPIView, ListAPIView):
                 version=1,
                 external_id=template_id,
                 template=new_template_object,
+                uploader=request.user,
             )
             TemplateDataMapping.objects.create(
                 name="One to one mapping",
