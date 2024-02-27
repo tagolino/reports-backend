@@ -14,7 +14,10 @@ def process_document_generation_request(document_id):
     template_data_mapping = document.template_data_mapping
     mapping_expression = template_data_mapping.mapping_expression
     template_id = template_data_mapping.template_file.external_id
-    csdk = carbone_sdk.CarboneSDK(settings.CARBONE_IO_API_TEST_TOKEN)
+    csdk_test = carbone_sdk.CarboneSDK(settings.CARBONE_IO_API_TEST_TOKEN)
+    csdk_production = carbone_sdk.CarboneSDK(
+        settings.CARBONE_IO_API_PRODUCTION_TOKEN
+    )
 
     for entry in document.generated_documents.all():
         data = map_data(entry.json_data, mapping_expression)
@@ -25,7 +28,10 @@ def process_document_generation_request(document_id):
         }
 
         try:
-            report_bytes, _ = csdk.render(template_id, json_data)
+            if entry.is_production:
+                report_bytes, _ = csdk_production.render(template_id, json_data)
+            else:
+                report_bytes, _ = csdk_test.render(template_id, json_data)
         except Exception as err:
             entry.status = DocumentGenerationRequest.FAILED
             entry.error = err

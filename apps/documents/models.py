@@ -36,6 +36,7 @@ class DocumentGenerationRequest(models.Model):
         choices=STATUS_CHOICES, max_length=32, default=PENDING
     )
     error = models.TextField()
+    is_production = models.BooleanField(null=True, default=False)
     json_data = models.JSONField(null=True, default=None)
     document = models.ForeignKey(
         Document, on_delete=models.CASCADE, related_name="generated_documents"
