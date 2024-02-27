@@ -13,6 +13,7 @@ class CreateDocumentSerializer(serializers.Serializer):
     name = serializers.CharField()
     data_file = serializers.FileField()
     template_id = serializers.IntegerField()
+    is_production = serializers.BooleanField()
 
 
 class DocumentDataFileSerializer(serializers.ModelSerializer):
