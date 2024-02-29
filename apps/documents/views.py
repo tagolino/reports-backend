@@ -71,7 +71,7 @@ class DocumentView(CreateAPIView, ListAPIView):
 
             for index in range(len(json_data)):
                 DocumentGenerationRequest.objects.create(
-                    name=index + 1,
+                    name=f"{document_name} - {index + 1}",
                     document=new_document_object,
                     is_production=is_production,
                     json_data=json_data[index],

@@ -22,6 +22,7 @@ class DocumentDataFileSerializer(serializers.ModelSerializer):
         fields = (
             "name",
             "created_at",
+            "file",
         )
 
 
