@@ -16,3 +16,13 @@ class UserSerializer(serializers.ModelSerializer):
             "groups",
             "user_permissions",
         )
+
+
+class CreatedBySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+        )

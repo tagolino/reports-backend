@@ -1,6 +1,6 @@
-import logging
 from collections import OrderedDict
 from copy import deepcopy
+from datetime import datetime
 
 from invoices.models import (
     HHConsumptionCharges,
@@ -14,9 +14,6 @@ from sources.data_service.models import (
     DataServiceContractMeter,
     DataServiceMeter,
 )
-
-logger = logging.getLogger(__name__)
-
 
 INVOICE_EXCEL_COLUMNS = OrderedDict(
     {
@@ -136,8 +133,18 @@ INVOICE_EXCEL_COLUMNS = OrderedDict(
     }
 )
 
+INDUSTRY_CHARGES_MAPPING = {
+    "capacity": "Availability/ Capacity",  # TODO: confirm if correct mapping
+    "standing_charge": "Standing Charge",
+    "excess_capacity_charge": "Excess Capacity Charge",
+    "reactive_charge": "Reactive Charge",
+    "transmission_charge": "Transmission Charges",
+    "mop_hh": "MOP HH.",
+    "da_dc_hh": "DA/DC HH.",
+}
 
-def exclude_electricity_charges_fields(headers, electricity_charge):
+
+def exclude_electricity_charges_fields(headers, electricity_charge="hh"):
     column_headers = deepcopy(headers)
     if electricity_charge == "hh":
         for header in [
@@ -182,15 +189,44 @@ def write_excel_row(
             continue
 
 
+def get_mapped_json_data(mapped_data: dict, headers: list, data: dict) -> None:
+    for field, column_value in data.items():
+        if isinstance(column_value, (list, dict)):
+            continue
+
+        try:
+            column_index = list(headers.values()).index(field)
+            mapped_field = list(headers.keys())[column_index]
+        except ValueError:
+            continue
+
+        if mapped_field.lower().endswith("date") or mapped_field.lower() in [
+            "bill from",
+            "bill to",
+        ]:
+            try:
+                column_value = int(
+                    datetime.fromisoformat(column_value).timestamp() * 1000
+                )
+            except ValueError:
+                column_value = None
+
+        mapped_data[mapped_field] = (
+            column_value if column_value is not None else ""
+        )
+
+    return mapped_data
+
+
 def get_electricity_charges(
     meter: DataServiceMeter,
     meter_invoice: MeterInvoice,
     data_service_contract: DataServiceContract,
+    customer_portal_customer_id: int,
 ) -> None:
-    customer_portal_id = meter_invoice.invoice.customer.customer_portal_id
     try:
         data_service_meter = DataServiceMeter.objects.get(
-            customer__customer_portal_id=customer_portal_id,
+            customer__customer_portal_id=customer_portal_customer_id,
             mpan__mpan=meter_invoice.customer_billing_details.mpan,
         )
 
@@ -210,37 +246,41 @@ def get_electricity_charges(
         night_consumption_value=meter.night_consumption,
         night_rate_value=data_service_contract_meter.night_unit_rate,
         night_charges=meter.night_cost,
-        total_electricity_charges=meter.day_cost + meter.night_cost,
+        total_electricity_charges=(
+            (meter.day_cost or 0) + (meter.night_cost or 0)
+        ),
     )
 
     meter_invoice.hh_consumption_charges = hh_consumption_charges
 
-    reading_consumption_charge = ReadingConsumptionCharges.objects.create(
-        opening_reading=meter.opening_reading,
-        opening_reading_date=meter.opening_reading_at.date(),
-        last_reading=meter.last_reading,
-        last_reading_date=meter.last_reading_at.date(),
-        consumption=meter.last_reading - meter.opening_reading,
-        total_electricity_charges=(
-            (meter.last_reading - meter.opening_reading)
-            / (
-                meter.last_reading_at.date() - meter.opening_reading_at.date()
-            ).days
-        ),
-    )
+    if meter.opening_reading and meter.last_reading:
+        reading_consumption_charge = ReadingConsumptionCharges.objects.create(
+            opening_reading=meter.opening_reading,
+            opening_reading_date=meter.opening_reading_at.date(),
+            last_reading=meter.last_reading,
+            last_reading_date=meter.last_reading_at.date(),
+            consumption=meter.last_reading - meter.opening_reading,
+            total_electricity_charges=(
+                (meter.last_reading - meter.opening_reading)
+                / (
+                    meter.last_reading_at.date()
+                    - meter.opening_reading_at.date()
+                ).days
+            ),
+        )
 
-    meter_invoice.reading_consumption_charges = reading_consumption_charge
+        meter_invoice.reading_consumption_charges = reading_consumption_charge
 
     industry_charges = []
     for field in DataServiceContractMeter._meta.fields:
         if (
-            field.name.endswith("_charge")
+            INDUSTRY_CHARGES_MAPPING.get(field.name)
             and getattr(data_service_contract_meter, field.name) is not None
         ):
             industry_charges.append(
                 IndustryCharges(
                     meter_invoice=meter_invoice,
-                    name=field.name,
+                    name=INDUSTRY_CHARGES_MAPPING[field.name],
                     quantity_1_value=getattr(
                         data_service_contract_meter, field.name
                     ),
@@ -250,7 +290,7 @@ def get_electricity_charges(
                 )
             )
         elif field.name.endswith("_levy"):
-            meter_invoice.levy_name = field.name
+            meter_invoice.levy_name = "Climate Change Levy"
             meter_invoice.levy_quantity = getattr(
                 data_service_contract_meter, field.name
             )

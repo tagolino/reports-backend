@@ -1,11 +1,39 @@
+import logging
+from collections import OrderedDict
+from datetime import datetime
+from io import BytesIO
+
 import carbone_sdk
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db.models import DecimalField, Max, Min, Q, Sum
+from django.db.models.functions import Coalesce
+from django.utils import timezone
+from invoices.models import BillingDetail, IndustryCharges, MeterInvoice
+from invoices.utils import (
+    INVOICE_EXCEL_COLUMNS,
+    exclude_electricity_charges_fields,
+    get_electricity_charges,
+    write_excel_row,
+)
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from sources.customer_portal.enums import ElectricityBillStatusEnum
+from sources.customer_portal.models import (
+    CustomerPortalECA,
+    CustomerPortalElectricityBillMeter,
+    CustomerPortalElectricityContract,
+)
+from sources.data_service.models import DataServiceContract
 
 from celery import shared_task
 
-from .models import Document, DocumentGenerationRequest
+from .models import DataFileRequest, Document, DocumentGenerationRequest
+from .serializers import DataFileRequestDetailSerializer
 from .utils import map_data
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -50,3 +78,277 @@ def process_document_generation_request(document_id):
 
         entry.status = DocumentGenerationRequest.SUCCEEDED
         entry.save()
+
+
+def create_data_file_excel(data_file_request: DataFileRequest):
+    wb = Workbook()
+    ws = wb.active
+    row_number = 1
+
+    headers = exclude_electricity_charges_fields(INVOICE_EXCEL_COLUMNS)
+
+    for index, header in enumerate(headers):
+        ws.cell(row=row_number, column=index + 1, value=header).font = Font(
+            bold=True
+        )
+    row_number += 1
+
+    data = DataFileRequestDetailSerializer(data_file_request).data
+    columns = list(headers.values())
+
+    for index, meter_invoice in enumerate(data["meter_invoices"]):
+        write_excel_row(ws, row_number, columns, meter_invoice)
+        for related_field in [
+            "customer_billing_details",
+            "hh_consumption_charges",
+            "reading_consumption_charges",
+        ]:
+            if meter_invoice.get(related_field):
+                write_excel_row(
+                    ws,
+                    row_number,
+                    columns,
+                    meter_invoice[related_field],
+                )
+
+        if meter_invoice.get("industry_charges"):
+            data = OrderedDict()
+            total_industry_charges = 0
+            for index, industry_charge in enumerate(
+                meter_invoice["industry_charges"]
+            ):
+                for field in IndustryCharges._meta.fields:
+                    field_value = ""
+                    if industry_charge.get(field.name) is not None:
+                        field_value = industry_charge[field.name]
+
+                        if field.name == "charges" and industry_charge.get(
+                            field.name
+                        ):
+                            total_industry_charges += float(
+                                industry_charge[field.name]
+                            )
+                    data[
+                        f"industry_charge_{index + 1}_{field.name}"
+                    ] = field_value
+            data["total_industry_charges"] = total_industry_charges
+            write_excel_row(
+                ws,
+                row_number,
+                columns,
+                data,
+            )
+
+        row_number += 1
+
+    excel_data = BytesIO()
+    wb.save(excel_data)
+    excel_data.seek(0)
+
+    data_file_request.xls_file.save(
+        f"{data_file_request.name} {timezone.now():%Y%m%d_%H%M%S}.xlsx",
+        ContentFile(excel_data.read()),
+    )
+
+
+@shared_task
+def process_data_file(data_file_id: int) -> None:
+    data_file_request = DataFileRequest.objects.get(pk=data_file_id)
+    period_start_at = data_file_request.period_start_at
+    period_end_at = data_file_request.period_end_at
+    today = timezone.now()
+
+    filters = {}
+    contract_filters = {}
+    if data_file_request.electricity_customer_accounts:
+        filters["pk__in"] = [
+            data["id"]
+            for data in data_file_request.electricity_customer_accounts
+        ]
+    if data_file_request.account_holders:
+        filters["account_holder_id__in"] = [
+            data["id"] for data in data_file_request.account_holders
+        ]
+    if data_file_request.customers:
+        filters["account_holder__customer_id__in"] = [
+            data["id"] for data in data_file_request.customers
+        ]
+    if data_file_request.contracts:
+        contract_filters["pk__in"] = [
+            data["id"] for data in data_file_request.contracts
+        ]
+
+    for electricity_customer_account in CustomerPortalECA.objects.filter(
+        **filters
+    ):
+        customer_portal_customer_id = (
+            electricity_customer_account.account_holder.customer_id
+        )
+        meters_consumption = (
+            electricity_customer_account.active_meters.annotate(
+                day_consumption=Sum(
+                    "consumptions__consumption",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                        consumptions__created_at__time__gt="07:00",
+                    ),
+                ),
+                night_consumption=Sum(
+                    "consumptions__consumption",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                        consumptions__created_at__time__gte="00:00",
+                        consumptions__created_at__time__lte="07:00",
+                    ),
+                ),
+                consumption=Sum(
+                    "consumptions__consumption",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                    ),
+                ),
+                day_cost=Sum(
+                    "consumptions__cost",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                        consumptions__created_at__time__gt="07:00",
+                    ),
+                ),
+                night_cost=Sum(
+                    "consumptions__cost",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                        consumptions__created_at__time__gte="00:00",
+                        consumptions__created_at__time__lte="07:00",
+                    ),
+                ),
+                cost=Sum(
+                    "consumptions__cost",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                    ),
+                ),
+                opening_reading=Min(
+                    "consumptions__reading",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                    ),
+                ),
+                opening_reading_at=Min(
+                    "consumptions__created_at",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                    ),
+                ),
+                last_reading=Max(
+                    "consumptions__reading",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                    ),
+                ),
+                last_reading_at=Max(
+                    "consumptions__created_at",
+                    filter=Q(
+                        consumptions__created_at__date__gte=period_start_at,
+                        consumptions__created_at__date__lte=period_end_at,
+                    ),
+                ),
+            )
+        )
+
+        for index, meter in enumerate(meters_consumption):
+            active_contracts = CustomerPortalElectricityContract.objects.filter(
+                is_active=True,
+                end_date__gt=today,
+                account__active_meters__pk=meter.id,
+                **contract_filters,
+            ).distinct()
+            for contract in active_contracts:
+                try:
+                    data_service_contract = DataServiceContract.objects.get(
+                        customer__customer_portal_id=customer_portal_customer_id,
+                        name=contract.name,
+                        customer_portal_id=contract.id,
+                    )
+                except (
+                    DataServiceContract.DoesNotExist,
+                    DataServiceContract.MultipleObjectsReturned,
+                ) as e:
+                    logger.error(
+                        f"Contract exception for MPAN: {meter.mpan.mpan} -- {e}"
+                    )
+                    continue
+
+                contract_name = (
+                    data_service_contract.name.replace("-", "")
+                    if data_service_contract.name
+                    else f"{data_service_contract.id}"
+                )
+                invoice_number = f"{contract_name}{today:%y%m}-{index + 1}"
+
+                customer_billing_details = BillingDetail.objects.create(
+                    invoice_number=invoice_number,
+                    billing_name=electricity_customer_account.name,
+                    site_name=getattr(meter.asset, "name", ""),
+                    site_address=getattr(meter.asset, "address", ""),
+                    account_number=getattr(contract, "name", "") or "",
+                    msn=getattr(meter.device, "serial_number", ""),
+                    mpan=getattr(meter.mpan, "mpan", ""),
+                    invoice_at=today,
+                    bill_from_at=(
+                        timezone.make_aware(
+                            datetime.combine(
+                                period_start_at, datetime.min.time()
+                            )
+                        )
+                    ),
+                    bill_to_at=(
+                        timezone.make_aware(
+                            datetime.combine(period_end_at, datetime.min.time())
+                        )
+                    ),
+                    contract_end_at=contract.end_date,
+                    payment_due_at=period_start_at + relativedelta(days=15),
+                )
+
+                previous_amount = (
+                    CustomerPortalElectricityBillMeter.objects.filter(
+                        meter=meter,
+                        bill__status__in=[
+                            ElectricityBillStatusEnum.PENDING,
+                            ElectricityBillStatusEnum.OVERDUE,
+                        ],
+                    ).aggregate(
+                        previous_amount=Coalesce(
+                            Sum("total"), 0, output_field=DecimalField()
+                        ),
+                    )[
+                        "previous_amount"
+                    ]
+                )
+
+                meter_invoice = MeterInvoice.objects.create(
+                    data_file_request=data_file_request,
+                    customer_billing_details=customer_billing_details,
+                    previous_balance=previous_amount,
+                    bill_amount=meter.cost or 0,
+                    total_amount=previous_amount + (meter.cost or 0),
+                )
+
+                get_electricity_charges(
+                    meter,
+                    meter_invoice,
+                    data_service_contract,
+                    customer_portal_customer_id,
+                )
+
+    create_data_file_excel(data_file_request)

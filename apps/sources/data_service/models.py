@@ -37,7 +37,7 @@ class DataServiceContract(models.Model):
         managed = False
 
     def __str__(self) -> str:
-        return self.name
+        return f"{self.name if self.name else self.pk}"
 
 
 class DataServiceMPAN(models.Model):
@@ -115,15 +115,23 @@ class DataServiceContractMeter(models.Model):
     reactive_charge = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True
     )
-    distribution_fixed_charge = models.DecimalField(
+    distribution_charge = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True
     )
-    national_grid_transmission_fix_cost = models.DecimalField(
+    transmission_charge = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True
     )
     climate_change_levy = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True
     )
+    mop_hh = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True
+    )
+    da_dc_hh = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True
+    )
+    night_start = models.TimeField(null=True, blank=True)
+    night_end = models.TimeField(null=True, blank=True)
 
     objects = DataServiceManager()
 
