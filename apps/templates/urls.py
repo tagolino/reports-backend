@@ -1,8 +1,16 @@
 from django.urls import include, path
 
-from .views import TemplateDetailsView, TemplateView
+from .views import SupplierView, TemplateDetailsView, TemplateView
 
 urlpatterns = [
+    path(
+        "suppliers/",
+        include(
+            [
+                path("", SupplierView.as_view()),
+            ]
+        ),
+    ),
     path(
         "templates/",
         include(

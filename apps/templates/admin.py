@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Template, TemplateDataMapping, TemplateFile
+from .models import Supplier, Template, TemplateDataMapping, TemplateFile
+
+
+@admin.register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    list_display = ["id", "name"]
+    list_filter = ["name"]
+    empty_value_display = "-"
 
 
 class TemplateFileInline(admin.TabularInline):
