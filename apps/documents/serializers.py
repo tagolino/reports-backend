@@ -12,9 +12,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
 
     def get_template(self, instance):
         try:
-            template = (
-                instance.prefetch_related.template_data_mapping.template_file.template
-            )
+            template = instance.template_data_mapping.template_file.template
 
             return {"id": template.id, "name": template.name}
         except KeyError:

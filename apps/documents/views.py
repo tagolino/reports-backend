@@ -15,7 +15,9 @@ from .utils import get_file_json_content
 
 
 class DocumentView(CreateAPIView, ListAPIView):
-    queryset = Document.objects.all()
+    queryset = Document.objects.prefetch_related(
+        "template_data_mapping__template_file__template"
+    ).all()
 
     def get_serializer_class(self):
         if self.request.method == "GET":
