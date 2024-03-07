@@ -4,9 +4,21 @@ from .models import Document, DocumentDataFile, DocumentGenerationRequest
 
 
 class DocumentListSerializer(serializers.ModelSerializer):
+    template = serializers.SerializerMethodField()
+
     class Meta:
         model = Document
-        fields = ("id", "name", "created_at")
+        fields = ("id", "name", "created_at", "template")
+
+    def get_template(self, instance):
+        try:
+            template = (
+                instance.prefetch_related.template_data_mapping.template_file.template
+            )
+
+            return {"id": template.id, "name": template.name}
+        except KeyError:
+            return None
 
 
 class CreateDocumentSerializer(serializers.Serializer):

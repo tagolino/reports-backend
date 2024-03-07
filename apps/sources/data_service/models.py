@@ -22,7 +22,7 @@ class DataServiceContract(models.Model):
     customer = models.ForeignKey(
         DataServiceCustomer,
         on_delete=models.DO_NOTHING,
-        related_name="contracts"
+        related_name="contracts",
     )
     name = models.CharField(max_length=255, blank=True, null=True)
     vat = models.DecimalField(
@@ -55,9 +55,7 @@ class DataServiceMPAN(models.Model):
 
 class DataServiceMeter(models.Model):
     customer = models.ForeignKey(
-        DataServiceCustomer,
-        on_delete=models.DO_NOTHING,
-        related_name="meters"
+        DataServiceCustomer, on_delete=models.DO_NOTHING, related_name="meters"
     )
     mpan = models.ForeignKey(
         DataServiceMPAN,
@@ -83,14 +81,10 @@ class DataServiceMeter(models.Model):
 
 class DataServiceContractMeter(models.Model):
     contract = models.ForeignKey(
-        DataServiceContract,
-        on_delete=models.DO_NOTHING,
-        related_name="meters"
+        DataServiceContract, on_delete=models.DO_NOTHING, related_name="meters"
     )
     meter = models.ForeignKey(
-        DataServiceMeter,
-        on_delete=models.DO_NOTHING,
-        related_name="contracts"
+        DataServiceMeter, on_delete=models.DO_NOTHING, related_name="contracts"
     )
     start_date = models.DateField()
     end_date = models.DateField()
@@ -149,24 +143,16 @@ class DataServiceMeterConsumption(models.Model):
     meter = models.ForeignKey(
         DataServiceMeter,
         on_delete=models.DO_NOTHING,
-        related_name="consumptions"
+        related_name="consumptions",
     )
     reading = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True
+        max_digits=12, decimal_places=2, null=True, blank=True
     )
     consumption = models.DecimalField(
-        default=0,
-        max_digits=12,
-        decimal_places=2
+        default=0, max_digits=12, decimal_places=2
     )
     cost = models.DecimalField(
-        default=0,
-        max_digits=12,
-        decimal_places=2,
-        null=True
+        default=0, max_digits=12, decimal_places=2, null=True
     )
     created_at = models.DateTimeField()
 

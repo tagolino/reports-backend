@@ -21,7 +21,7 @@ class ElectricityCustomerAccount(models.Model):
         Customer,
         null=True,
         on_delete=models.SET_NULL,
-        related_name="electricity_customer_accounts"
+        related_name="electricity_customer_accounts",
     )
 
     name = models.CharField(max_length=255)
