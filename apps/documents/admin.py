@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from .models import Document, DocumentDataFile, DocumentGenerationRequest
+from .models import (
+    DataFileRequest,
+    Document,
+    DocumentDataFile,
+    DocumentGenerationRequest,
+)
 
 
 class DocumentDataFileInline(admin.TabularInline):
@@ -38,3 +43,15 @@ class DocumentAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(DataFileRequest)
+class DataFileRequestAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "name",
+        "period_start_at",
+        "period_end_at",
+        "created_by",
+        "created_at",
+    ]

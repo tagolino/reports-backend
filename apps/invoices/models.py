@@ -1,5 +1,6 @@
 from customers.models import Customer, ElectricityCustomerAccount
 from django.db import models
+from documents.models import DataFileRequest
 
 
 class HHConsumptionCharges(models.Model):
@@ -117,8 +118,8 @@ class Invoice(models.Model):
 
 
 class MeterInvoice(models.Model):
-    invoice = models.ForeignKey(
-        Invoice,
+    data_file_request = models.ForeignKey(
+        DataFileRequest,
         null=True,
         on_delete=models.SET_NULL,
         related_name="meter_invoices",

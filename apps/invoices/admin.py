@@ -38,7 +38,7 @@ class BillingDetailsAdmin(admin.ModelAdmin):
 class MeterInvoiceAdmin(admin.ModelAdmin):
     list_display = [
         "id",
-        "invoice",
+        "data_file_request",
         "customer_billing_details",
     ]
 
