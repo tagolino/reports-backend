@@ -1,4 +1,5 @@
 from django.db import models
+from templates.models import Template
 
 from .enums import ActionTypesEnum
 
@@ -59,6 +60,12 @@ class DataFileRequest(models.Model):
         default=ActionTypesEnum.INVOICE,
     )
     name = models.CharField(max_length=225)
+    document_template = models.ForeignKey(
+        Template,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="data_file_requests",
+    )
     customers = models.JSONField(null=True)
     contracts = models.JSONField(null=True)
     account_holders = models.JSONField(null=True)

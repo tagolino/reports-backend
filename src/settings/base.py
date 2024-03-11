@@ -97,6 +97,14 @@ DATABASES = {
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
     },
+    "billing_service": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.environ.get("BS_DB_NAME"),
+        "USER": os.environ.get("BS_DB_USER"),
+        "PASSWORD": os.environ.get("BS_DB_PASSWORD"),
+        "HOST": os.environ.get("BS_DB_HOST"),
+        "PORT": os.environ.get("BS_DB_PORT"),
+    },
     "data_service": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": os.environ.get("DS_DB_NAME"),

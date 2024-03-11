@@ -2,6 +2,8 @@ from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime
 
+from django.db.models import DecimalField, Q, Sum
+from django.db.models.functions import Coalesce
 from invoices.models import (
     HHConsumptionCharges,
     IndustryCharges,
@@ -9,10 +11,10 @@ from invoices.models import (
     ReadingConsumptionCharges,
 )
 from openpyxl.worksheet.worksheet import Worksheet
-from sources.data_service.models import (
-    DataServiceContract,
-    DataServiceContractMeter,
-    DataServiceMeter,
+from sources.billing_service.models import (
+    BillingServiceContract,
+    BillingServiceContractMeter,
+    BillingServiceMeter,
 )
 
 INVOICE_EXCEL_COLUMNS = OrderedDict(
@@ -134,43 +136,45 @@ INVOICE_EXCEL_COLUMNS = OrderedDict(
 )
 
 INDUSTRY_CHARGES_MAPPING = {
-    "capacity": "Availability/ Capacity",  # TODO: confirm if correct mapping
+    "capacity": "Availability/ Capacity",
+    "daily_capacity": "Capacity Charge",
     "standing_charge": "Standing Charge",
-    "excess_capacity_charge": "Excess Capacity Charge",
+    "excess_capacity_charge": "Availability Charge",
     "reactive_charge": "Reactive Charge",
-    "transmission_charge": "Transmission Charges",
     "mop_hh": "MOP HH.",
     "da_dc_hh": "DA/DC HH.",
+    "distribution_charge": "Distribution Fixed Charge",
+    "transmission_charge": "National Grid Transmission Fixed Charge",
 }
 
 
-def exclude_electricity_charges_fields(headers, electricity_charge="hh"):
+def exclude_electricity_charges_fields(headers, template_column_mapping):
+    template_column_names = [
+        column_name.replace("`", "")
+        for column_name in template_column_mapping.values()
+    ]
     column_headers = deepcopy(headers)
-    if electricity_charge == "hh":
-        for header in [
-            "Opening Reading",
-            "Opening Reading Type",
-            "Opening Reading Date",
-            "Last Reading",
-            "Last Reading Type",
-            "Last Reading Date",
-            "Consumption",
-            "Rate",
-        ]:
-            column_headers.pop(header, None)
-    elif electricity_charge == "readings":
-        for header in [
-            "Day Consumption - Value",
-            "Day Consumption - Unit",
-            "Day Rate - Value",
-            "Day Rate - Unit",
-            "Day Charges",
-            "Night Consumption - Value",
-            "Night Consumption - Unit",
-            "Night Rate - Value",
-            "Night Rate - Unit",
-            "Night Charges",
-        ]:
+    for header in [
+        "Opening Reading",
+        "Opening Reading Type",
+        "Opening Reading Date",
+        "Last Reading",
+        "Last Reading Type",
+        "Last Reading Date",
+        "Consumption",
+        "Rate",
+        "Day Consumption - Value",
+        "Day Consumption - Unit",
+        "Day Rate - Value",
+        "Day Rate - Unit",
+        "Day Charges",
+        "Night Consumption - Value",
+        "Night Consumption - Unit",
+        "Night Rate - Value",
+        "Night Rate - Unit",
+        "Night Charges",
+    ]:
+        if header not in template_column_names:
             column_headers.pop(header, None)
     return column_headers
 
@@ -219,35 +223,87 @@ def get_mapped_json_data(mapped_data: dict, headers: list, data: dict) -> None:
 
 
 def get_electricity_charges(
-    meter: DataServiceMeter,
+    meter: BillingServiceMeter,
     meter_invoice: MeterInvoice,
-    data_service_contract: DataServiceContract,
+    billing_service_contract: BillingServiceContract,
     customer_portal_customer_id: int,
 ) -> None:
+    period_start_at = meter_invoice.data_file_request.period_start_at
+    period_end_at = meter_invoice.data_file_request.period_end_at
+    period_day_diff = (period_end_at - period_start_at).days
+
     try:
-        data_service_meter = DataServiceMeter.objects.get(
-            customer__customer_portal_id=customer_portal_customer_id,
+        data_service_meter = BillingServiceMeter.objects.get(
+            electricity_customer_account__customer__customer_portal_id=customer_portal_customer_id,
             mpan__mpan=meter_invoice.customer_billing_details.mpan,
         )
 
-        data_service_contract_meter = DataServiceContractMeter.objects.get(
-            contract=data_service_contract, meter=data_service_meter
+        data_service_contract_meter = BillingServiceContractMeter.objects.get(
+            contract=billing_service_contract, meter=data_service_meter
         )
     except (
-        DataServiceMeter.DoesNotExist,
-        DataServiceContractMeter.DoesNotExist,
+        BillingServiceMeter.DoesNotExist,
+        BillingServiceContractMeter.DoesNotExist,
     ):
         return
 
+    night_time_start = (
+        data_service_contract_meter.contract.night_time_start.isoformat()
+    )
+    night_time_end = (
+        data_service_contract_meter.contract.night_time_end.isoformat()
+    )
+
+    meter_consumption_charges = meter.consumptions.filter(
+        Q(
+            created_at__date__gte=period_start_at,
+            created_at__date__lte=period_end_at,
+        )
+    ).aggregate(
+        day_consumption=Coalesce(
+            Sum("consumption", filter=Q(created_at__time__gt=night_time_end)),
+            0,
+            output_field=DecimalField(),
+        ),
+        night_consumption=Coalesce(
+            Sum(
+                "consumption",
+                filter=Q(
+                    created_at__time__gte=night_time_start,
+                    created_at__time__lte=night_time_end,
+                ),
+            ),
+            0,
+            output_field=DecimalField(),
+        ),
+        day_cost=Coalesce(
+            Sum("cost", filter=Q(created_at__time__gt=night_time_end)),
+            0,
+            output_field=DecimalField(),
+        ),
+        night_cost=Coalesce(
+            Sum(
+                "cost",
+                filter=Q(
+                    created_at__time__gte=night_time_start,
+                    created_at__time__lte=night_time_end,
+                ),
+            ),
+            0,
+            output_field=DecimalField(),
+        ),
+    )
+
     hh_consumption_charges = HHConsumptionCharges.objects.create(
-        day_consumption_value=meter.day_consumption,
+        day_consumption_value=meter_consumption_charges["day_consumption"],
         day_rate_value=data_service_contract_meter.day_unit_rate,
-        day_charges=meter.day_cost,
-        night_consumption_value=meter.night_consumption,
+        day_charges=meter_consumption_charges["day_cost"],
+        night_consumption_value=meter_consumption_charges["night_consumption"],
         night_rate_value=data_service_contract_meter.night_unit_rate,
-        night_charges=meter.night_cost,
+        night_charges=meter_consumption_charges["night_cost"],
         total_electricity_charges=(
-            (meter.day_cost or 0) + (meter.night_cost or 0)
+            meter_consumption_charges["day_cost"]
+            + meter_consumption_charges["night_cost"]
         ),
     )
 
@@ -272,29 +328,48 @@ def get_electricity_charges(
         meter_invoice.reading_consumption_charges = reading_consumption_charge
 
     industry_charges = []
-    for field in DataServiceContractMeter._meta.fields:
+    for field in BillingServiceContractMeter._meta.fields:
         if (
             INDUSTRY_CHARGES_MAPPING.get(field.name)
             and getattr(data_service_contract_meter, field.name) is not None
         ):
-            industry_charges.append(
-                IndustryCharges(
-                    meter_invoice=meter_invoice,
-                    name=INDUSTRY_CHARGES_MAPPING[field.name],
-                    quantity_1_value=getattr(
-                        data_service_contract_meter, field.name
-                    ),
-                    # TODO: this still needs to change once unit in
-                    #       industry charges is added
-                    charges=getattr(data_service_contract_meter, field.name),
+            if field.name in [
+                "standing_charge",
+                "daily_capacity",
+                "distribution_charge",
+                "transmission_charge",
+            ]:
+                rate_value = getattr(data_service_contract_meter, field.name)
+                industry_charges.append(
+                    IndustryCharges(
+                        meter_invoice=meter_invoice,
+                        name=INDUSTRY_CHARGES_MAPPING[field.name],
+                        quantity_1_value=period_day_diff,
+                        quantity_1_unit="days",
+                        unit="Day",
+                        rate_value=rate_value,
+                        rate_unit="p/day",
+                        charges=(rate_value * period_day_diff) / 100,
+                    )
                 )
-            )
+            else:
+                industry_charges.append(
+                    IndustryCharges(
+                        meter_invoice=meter_invoice,
+                        name=INDUSTRY_CHARGES_MAPPING[field.name],
+                        quantity_1_value=getattr(
+                            data_service_contract_meter, field.name
+                        ),
+                        charges=getattr(
+                            data_service_contract_meter, field.name
+                        ),
+                    )
+                )
         elif field.name.endswith("_levy"):
             meter_invoice.levy_name = "Climate Change Levy"
             meter_invoice.levy_quantity = getattr(
                 data_service_contract_meter, field.name
             )
-            # TODO: this still needs to change once unit in levy is added
             meter_invoice.levy_total = meter_invoice.levy_quantity
             meter_invoice.total_levies = meter_invoice.levy_quantity
 
