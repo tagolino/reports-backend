@@ -36,6 +36,7 @@ class TemplateFileSerializer(serializers.ModelSerializer):
             "created_at",
             "version",
             "is_active",
+            "file",
         )
 
 
