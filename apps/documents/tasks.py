@@ -19,13 +19,13 @@ from invoices.utils import (
 )
 from openpyxl import Workbook
 from openpyxl.styles import Font
+from sources.billing_service.models import BillingServiceContract
 from sources.customer_portal.enums import ElectricityBillStatusEnum
 from sources.customer_portal.models import (
     CustomerPortalECA,
     CustomerPortalElectricityBillMeter,
     CustomerPortalElectricityContract,
 )
-from sources.data_service.models import DataServiceContract
 
 from celery import shared_task
 
@@ -85,7 +85,14 @@ def create_data_file_excel(data_file_request: DataFileRequest):
     ws = wb.active
     row_number = 1
 
-    headers = exclude_electricity_charges_fields(INVOICE_EXCEL_COLUMNS)
+    headers = exclude_electricity_charges_fields(
+        INVOICE_EXCEL_COLUMNS,
+        (
+            data_file_request.document_template.template_files.first()
+            .templatedatamapping_set.first()
+            .mapping_expression
+        ),
+    )
 
     for index, header in enumerate(headers):
         ws.cell(row=row_number, column=index + 1, value=header).font = Font(
@@ -186,45 +193,11 @@ def process_data_file(data_file_id: int) -> None:
         )
         meters_consumption = (
             electricity_customer_account.active_meters.annotate(
-                day_consumption=Sum(
-                    "consumptions__consumption",
-                    filter=Q(
-                        consumptions__created_at__date__gte=period_start_at,
-                        consumptions__created_at__date__lte=period_end_at,
-                        consumptions__created_at__time__gt="07:00",
-                    ),
-                ),
-                night_consumption=Sum(
-                    "consumptions__consumption",
-                    filter=Q(
-                        consumptions__created_at__date__gte=period_start_at,
-                        consumptions__created_at__date__lte=period_end_at,
-                        consumptions__created_at__time__gte="00:00",
-                        consumptions__created_at__time__lte="07:00",
-                    ),
-                ),
                 consumption=Sum(
                     "consumptions__consumption",
                     filter=Q(
                         consumptions__created_at__date__gte=period_start_at,
                         consumptions__created_at__date__lte=period_end_at,
-                    ),
-                ),
-                day_cost=Sum(
-                    "consumptions__cost",
-                    filter=Q(
-                        consumptions__created_at__date__gte=period_start_at,
-                        consumptions__created_at__date__lte=period_end_at,
-                        consumptions__created_at__time__gt="07:00",
-                    ),
-                ),
-                night_cost=Sum(
-                    "consumptions__cost",
-                    filter=Q(
-                        consumptions__created_at__date__gte=period_start_at,
-                        consumptions__created_at__date__lte=period_end_at,
-                        consumptions__created_at__time__gte="00:00",
-                        consumptions__created_at__time__lte="07:00",
                     ),
                 ),
                 cost=Sum(
@@ -274,14 +247,14 @@ def process_data_file(data_file_id: int) -> None:
             ).distinct()
             for contract in active_contracts:
                 try:
-                    data_service_contract = DataServiceContract.objects.get(
-                        customer__customer_portal_id=customer_portal_customer_id,
+                    billing_service_contract = BillingServiceContract.objects.get(
+                        account__customer__customer_portal_id=customer_portal_customer_id,
                         name=contract.name,
                         customer_portal_id=contract.id,
                     )
                 except (
-                    DataServiceContract.DoesNotExist,
-                    DataServiceContract.MultipleObjectsReturned,
+                    BillingServiceContract.DoesNotExist,
+                    BillingServiceContract.MultipleObjectsReturned,
                 ) as e:
                     logger.error(
                         f"Contract exception for MPAN: {meter.mpan.mpan} -- {e}"
@@ -289,9 +262,9 @@ def process_data_file(data_file_id: int) -> None:
                     continue
 
                 contract_name = (
-                    data_service_contract.name.replace("-", "")
-                    if data_service_contract.name
-                    else f"{data_service_contract.id}"
+                    billing_service_contract.name.replace("-", "")
+                    if billing_service_contract.name
+                    else f"{billing_service_contract.id}"
                 )
                 invoice_number = f"{contract_name}{today:%y%m}-{index + 1}"
 
@@ -347,7 +320,7 @@ def process_data_file(data_file_id: int) -> None:
                 get_electricity_charges(
                     meter,
                     meter_invoice,
-                    data_service_contract,
+                    billing_service_contract,
                     customer_portal_customer_id,
                 )
 
