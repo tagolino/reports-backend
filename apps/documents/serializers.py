@@ -6,6 +6,7 @@ from invoices.serializers import MeterInvoiceSerializer
 from invoices.utils import INVOICE_EXCEL_COLUMNS, get_mapped_json_data
 from rest_framework import serializers
 from templates.models import TemplateDataMapping
+from templates.serializers import TemplateDetailsSerializer
 from users.serializers import CreatedBySerializer
 
 from .models import (
@@ -17,18 +18,56 @@ from .models import (
 from .utils import get_file_json_content
 
 
+class DynamicFieldsSerializerMixin():
+    def __init__(self, *args, **kwargs):
+        fields = kwargs.pop("fields", None)
+
+        super(DynamicFieldsSerializerMixin, self).__init__(*args, **kwargs)
+
+        if fields is not None:
+            allowed = set(fields)
+            existing = set(self.fields.keys())
+            for field_name in existing - allowed:
+                self.fields.pop(field_name)
+
+
+class DocumentDataFileSerializer(
+    DynamicFieldsSerializerMixin, serializers.ModelSerializer
+):
+    class Meta:
+        model = DocumentDataFile
+        fields = (
+            "name",
+            "created_at",
+            "file",
+        )
+
+
 class DocumentListSerializer(serializers.ModelSerializer):
     template = serializers.SerializerMethodField()
+    data_file = serializers.SerializerMethodField()
 
     class Meta:
         model = Document
-        fields = ("id", "name", "created_at", "template")
+        fields = ("id", "name", "created_at", "template", "data_file")
 
     def get_template(self, instance):
         try:
             template = instance.template_data_mapping.template_file.template
 
-            return {"id": template.id, "name": template.name}
+            return TemplateDetailsSerializer(
+                template, fields=["id", "name"]
+            ).data
+        except KeyError:
+            return None
+
+    def get_data_file(self, instance):
+        try:
+            last_data_file = instance.data_documents.last()
+
+            return DocumentDataFileSerializer(
+                last_data_file, fields=["name", "file"]
+            ).data
         except KeyError:
             return None
 
@@ -77,7 +116,8 @@ class CreateDocumentSerializer(serializers.Serializer):
         if data_file_id:
             json_data = []
             try:
-                data_file_request = DataFileRequest.objects.get(id=data_file_id)
+                data_file_request = DataFileRequest.objects.get(
+                    id=data_file_id)
             except DataFileRequest.DoesNotExist:
                 raise serializers.ValidationError(
                     "Data file request not found."
@@ -180,16 +220,6 @@ class CreateDocumentSerializer(serializers.Serializer):
                 )
 
         return new_document_object
-
-
-class DocumentDataFileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DocumentDataFile
-        fields = (
-            "name",
-            "created_at",
-            "file",
-        )
 
 
 class DocumentGenerationRequestSerializer(serializers.ModelSerializer):
