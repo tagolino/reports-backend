@@ -2,8 +2,8 @@ from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime
 
-from django.db.models import DecimalField, Q, Sum
-from django.db.models.functions import Coalesce
+from django.db.models import DecimalField, F, Q, Sum
+from django.db.models.functions import Coalesce, Round
 from invoices.models import (
     HHConsumptionCharges,
     IndustryCharges,
@@ -20,7 +20,13 @@ from sources.billing_service.models import (
 INVOICE_EXCEL_COLUMNS = OrderedDict(
     {
         "Billing Name": "billing_name",
-        "Billing Address": "billing_address",
+        "Billing Address Line 1": "billing_address_1",
+        "Billing Address Line 2": "billing_address_2",
+        "Billing Address Line 3": "billing_address_3",
+        "Billing Address Line 4": "billing_address_4",
+        "Billing Address Line 5": "billing_address_5",
+        "Billing Address City": "billing_city",
+        "Billing Address Postal Code": "billing_postal_code",
         "Site Name": "site_name",
         "Site Address": "site_address",
         "VAT No": "vat_number",
@@ -28,11 +34,11 @@ INVOICE_EXCEL_COLUMNS = OrderedDict(
         "MSN": "msn",
         "PC": "pc",
         "MTC": "mtc",
-        "LF": "llf",
+        "LLF": "llf",
         "MPAN": "mpan",
         "Contract End Date": "contract_end_at",
         "Invoice Number": "invoice_number",
-        "Invoice Date": "invoice_at",
+        "Date of Invoice": "invoice_at",
         "Bill From": "bill_from_at",
         "Bill To": "bill_to_at",
         "Payment Due Date": "payment_due_at",
@@ -125,12 +131,12 @@ INVOICE_EXCEL_COLUMNS = OrderedDict(
         "Levy 1 Rate - Value": "levy_rate_value",
         "Levy 1 Rate - Unit": "levy_rate_unit",
         "Levy 1 Total": "levy_total",
-        "Total  Levies": "total_levies",
+        "Total Levies": "total_levies",
         "Total Excluding VAT": "total_no_vat",
         "Applicable VAT": "applicable_vat",
         "VAT Charged": "charged_vat",
         "Bill Amount": "bill_amount",
-        "Previous Amount": "previous_balance",
+        "Previous Balance": "previous_balance",
         "Amount To Pay": "total_amount",
     }
 )
@@ -187,6 +193,16 @@ def write_excel_row(
             continue
 
         try:
+            column_value = datetime.fromisoformat(column_value).strftime(
+                "%Y-%m-%d"
+            )
+        except (TypeError, ValueError):
+            pass
+
+        if field == "applicable_vat":
+            column_value = f"{int(float(column_value) * 100)}%"
+
+        try:
             column_number = headers.index(field) + 1
             ws.cell(row=row_number, column=column_number, value=column_value)
         except ValueError:
@@ -230,7 +246,7 @@ def get_electricity_charges(
 ) -> None:
     period_start_at = meter_invoice.data_file_request.period_start_at
     period_end_at = meter_invoice.data_file_request.period_end_at
-    period_day_diff = (period_end_at - period_start_at).days
+    period_day_diff = (period_end_at - period_start_at).days + 1
 
     try:
         data_service_meter = BillingServiceMeter.objects.get(
@@ -296,10 +312,14 @@ def get_electricity_charges(
 
     hh_consumption_charges = HHConsumptionCharges.objects.create(
         day_consumption_value=meter_consumption_charges["day_consumption"],
+        day_consumption_unit="kWh",
         day_rate_value=data_service_contract_meter.day_unit_rate,
+        day_rate_unit="p/kWh",
         day_charges=meter_consumption_charges["day_cost"],
         night_consumption_value=meter_consumption_charges["night_consumption"],
+        night_consumption_unit="kWh",
         night_rate_value=data_service_contract_meter.night_unit_rate,
+        night_rate_unit="p/kWh",
         night_charges=meter_consumption_charges["night_cost"],
         total_electricity_charges=(
             meter_consumption_charges["day_cost"]
@@ -316,6 +336,7 @@ def get_electricity_charges(
             last_reading=meter.last_reading,
             last_reading_date=meter.last_reading_at.date(),
             consumption=meter.last_reading - meter.opening_reading,
+            rate=data_service_contract_meter.day_unit_rate,
             total_electricity_charges=(
                 (meter.last_reading - meter.opening_reading)
                 / (
@@ -339,6 +360,14 @@ def get_electricity_charges(
                 "distribution_charge",
                 "transmission_charge",
             ]:
+                # TODO: confirm if this can be save in billing service or not
+                #       then create a industry charges mapping for
+                #       name, rate and unit configurations
+                rate_unit = "p/day"
+                if field.name == "distribution_charge":
+                    rate_unit = "p/MPAN/day"
+                elif field.name == "transmission_charge":
+                    rate_unit = "p/Per Site/day"
                 rate_value = getattr(data_service_contract_meter, field.name)
                 industry_charges.append(
                     IndustryCharges(
@@ -348,7 +377,7 @@ def get_electricity_charges(
                         quantity_1_unit="days",
                         unit="Day",
                         rate_value=rate_value,
-                        rate_unit="p/day",
+                        rate_unit=rate_unit,
                         charges=(rate_value * period_day_diff) / 100,
                     )
                 )
@@ -365,7 +394,9 @@ def get_electricity_charges(
                         ),
                     )
                 )
-        elif field.name.endswith("_levy"):
+        elif field.name.endswith("_levy") and getattr(
+            data_service_contract_meter, field.name
+        ):
             meter_invoice.levy_name = "Climate Change Levy"
             meter_invoice.levy_quantity = getattr(
                 data_service_contract_meter, field.name
@@ -376,3 +407,25 @@ def get_electricity_charges(
     IndustryCharges.objects.bulk_create(industry_charges)
     meter_invoice.data_center_contract_meter_id = data_service_contract_meter.id
     meter_invoice.save()
+
+
+def compute_industry_charges_total_charges(data_file_request):
+    # we can get here the equivalent to number of MPANs in the invoice
+    customer_billing_details = data_file_request.meter_invoices.filter(
+        customer_billing_details__isnull=False
+    )
+
+    IndustryCharges.objects.filter(
+        meter_invoice__data_file_request=data_file_request,
+        name="Distribution Fixed Charge",
+    ).update(
+        charges=Round(
+            (
+                F("rate_value")
+                * customer_billing_details.count()
+                * F("quantity_1_value")
+            )
+            / 100,
+            precision=4,
+        )
+    )

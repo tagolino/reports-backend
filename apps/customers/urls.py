@@ -3,6 +3,9 @@ from sources.customer_portal.views import (
     AccountHolderListView as CustomerPortalAccountHolderListView,
 )
 from sources.customer_portal.views import (
+    AssetListView as CustomerPortalAssetListView,
+)
+from sources.customer_portal.views import (
     CustomerListView as CustomerPortalCustomerListView,
 )
 from sources.customer_portal.views import (
@@ -10,6 +13,9 @@ from sources.customer_portal.views import (
 )
 from sources.customer_portal.views import (
     ElectricityCustomerAccountListView as CustomerPortalECAListView,
+)
+from sources.customer_portal.views import (
+    MPANListView as CustomerPortalMPANListView,
 )
 
 urlpatterns = [
@@ -29,6 +35,14 @@ urlpatterns = [
                 path(
                     "contracts/",
                     CustomerPortalElectricityContractListView.as_view(),
+                ),
+                path(
+                    "sites/",
+                    CustomerPortalAssetListView.as_view(),
+                ),
+                path(
+                    "mpans/",
+                    CustomerPortalMPANListView.as_view(),
                 ),
             ]
         ),

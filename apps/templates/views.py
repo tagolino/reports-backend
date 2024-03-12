@@ -32,6 +32,7 @@ class TemplateView(CreateAPIView, ListAPIView):
         serializer.is_valid(raise_exception=True)
         template_name = request.data.get("name")
         template_type = request.data.get("type")
+        template_sub_type = request.data.get("sub_type")
         template_file = request.data.get("file")
         template_is_active = request.data.get("is_active")
         response = add_template(template_file)
@@ -52,6 +53,7 @@ class TemplateView(CreateAPIView, ListAPIView):
             new_template_object = Template.objects.create(
                 name=template_name,
                 type=template_type,
+                sub_type=template_sub_type,
             )
             new_template_file = TemplateFile.objects.create(
                 name=template_name,

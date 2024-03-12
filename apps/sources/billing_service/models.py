@@ -29,6 +29,14 @@ class BillingServiceElectricityCustomerAccount(models.Model):
         related_name="electricity_customer_accounts",
     )
     customer_portal_id = models.IntegerField()
+    billing_name = models.CharField(max_length=255, blank=True)
+    billing_address_1 = models.CharField(max_length=255, blank=True)
+    billing_address_2 = models.CharField(max_length=255, blank=True)
+    billing_address_3 = models.CharField(max_length=255, blank=True)
+    billing_address_4 = models.CharField(max_length=255, blank=True)
+    billing_address_5 = models.CharField(max_length=255, blank=True)
+    billing_city = models.CharField(max_length=255, blank=True)
+    billing_postal_code = models.CharField(max_length=36, blank=True)
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
 
@@ -127,6 +135,7 @@ class BillingServiceContract(models.Model):
 
     name = models.CharField(max_length=255)
     currency = models.CharField(max_length=3)
+    vat_number = models.CharField(max_length=64)
     vat = models.DecimalField(max_digits=5, decimal_places=2)
 
     plan_type = models.CharField(max_length=24)

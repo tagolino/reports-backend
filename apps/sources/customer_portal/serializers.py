@@ -2,9 +2,11 @@ from rest_framework import serializers
 
 from .models import (
     CustomerPortalAccountHolder,
+    CustomerPortalAsset,
     CustomerPortalCustomer,
     CustomerPortalECA,
     CustomerPortalElectricityContract,
+    CustomerPortalMpan,
 )
 
 
@@ -41,4 +43,22 @@ class ElectricityContractSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+        )
+
+
+class AssetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerPortalAsset
+        fields = (
+            "id",
+            "name",
+        )
+
+
+class MPANSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerPortalMpan
+        fields = (
+            "id",
+            "mpan",
         )

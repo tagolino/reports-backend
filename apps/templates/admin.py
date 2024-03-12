@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Supplier, Template, TemplateDataMapping, TemplateFile
+from .models import (
+    Supplier,
+    Template,
+    TemplateDataMapping,
+    TemplateFile,
+    TemplateSubType,
+    TemplateType,
+)
 
 
 @admin.register(Supplier)
@@ -18,7 +25,7 @@ class TemplateFileInline(admin.TabularInline):
 
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):
-    list_display = ["id", "name", "type", "created_at"]
+    list_display = ["id", "name", "type", "sub_type", "created_at"]
     list_filter = ["type"]
     empty_value_display = "-"
     search_fields = [
@@ -45,3 +52,13 @@ class TemplateFileAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(TemplateType)
+class TemplateTypeAdmin(admin.ModelAdmin):
+    list_display = ["id", "name"]
+
+
+@admin.register(TemplateSubType)
+class TemplateSubTypeAdmin(admin.ModelAdmin):
+    list_display = ["id", "name"]

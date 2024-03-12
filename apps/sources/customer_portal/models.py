@@ -58,6 +58,8 @@ class CustomerPortalAsset(models.Model):
         CustomerPortalCountry, on_delete=models.SET_NULL, null=True, blank=True
     )
 
+    objects = CustomerPortalManager()
+
     class Meta:
         db_table = "assets"
         managed = False
@@ -183,6 +185,7 @@ class CustomerPortalMeter(models.Model):
         null=True,
         blank=True,
     )
+    is_smart_meter = models.BooleanField()
 
     objects = CustomerPortalManager()
 
@@ -218,12 +221,26 @@ class CustomerPortalMeterConsumption(models.Model):
         managed = False
 
 
+class CustomerPortalElectricitySupplier(models.Model):
+    name = models.CharField(max_length=128)
+    vat_number = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        db_table = "electricity_suppliers"
+        managed = False
+
+
 class CustomerPortalElectricityContract(models.Model):
     name = models.CharField(max_length=255, null=True)
     account = models.ForeignKey(
         CustomerPortalECA,
         on_delete=models.DO_NOTHING,
         related_name="contracts",
+    )
+    supplier = models.ForeignKey(
+        CustomerPortalElectricitySupplier,
+        on_delete=models.DO_NOTHING,
+        related_name="customer_contracts",
     )
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
