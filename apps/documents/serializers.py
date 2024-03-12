@@ -18,7 +18,7 @@ from .models import (
 from .utils import get_file_json_content
 
 
-class DynamicFieldsSerializerMixin():
+class DynamicFieldsSerializerMixin:
     def __init__(self, *args, **kwargs):
         fields = kwargs.pop("fields", None)
 
@@ -116,8 +116,7 @@ class CreateDocumentSerializer(serializers.Serializer):
         if data_file_id:
             json_data = []
             try:
-                data_file_request = DataFileRequest.objects.get(
-                    id=data_file_id)
+                data_file_request = DataFileRequest.objects.get(id=data_file_id)
             except DataFileRequest.DoesNotExist:
                 raise serializers.ValidationError(
                     "Data file request not found."

@@ -4,11 +4,7 @@ from .models import DataFileRequest, Document
 
 
 class DocumentFilter(filters.FilterSet):
-    ordering = filters.OrderingFilter(
-        fields=(
-            ("created_at", "created_at"),
-        )
-    )
+    ordering = filters.OrderingFilter(fields=(("created_at", "created_at"),))
 
     class Meta:
         model = Document
@@ -18,11 +14,7 @@ class DocumentFilter(filters.FilterSet):
 
 
 class DataFileRequestFilter(filters.FilterSet):
-    ordering = filters.OrderingFilter(
-        fields=(
-            ("created_at", "created_at"),
-        )
-    )
+    ordering = filters.OrderingFilter(fields=(("created_at", "created_at"),))
 
     class Meta:
         model = DataFileRequest

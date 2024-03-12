@@ -25,10 +25,19 @@ class SupplierListSerializer(serializers.ModelSerializer):
 class TemplateListSerializer(serializers.ModelSerializer):
     supplier = SupplierListSerializer()
     is_active = serializers.SerializerMethodField()
+    template_file = serializers.SerializerMethodField()
 
     class Meta:
         model = Template
-        fields = ("id", "name", "type", "created_at", "supplier", "is_active")
+        fields = (
+            "id",
+            "name",
+            "type",
+            "created_at",
+            "supplier",
+            "is_active",
+            "template_file",
+        )
 
     def get_is_active(self, instance):
         last_template_file = instance.template_files.last()
@@ -38,8 +47,20 @@ class TemplateListSerializer(serializers.ModelSerializer):
 
         return False
 
+    def get_template_file(self, instance):
+        last_template_file = instance.template_files.last()
 
-class TemplateFileSerializer(serializers.ModelSerializer):
+        if not last_template_file:
+            return None
+
+        return TemplateFileSerializer(
+            last_template_file, fields=["name", "file"]
+        ).data
+
+
+class TemplateFileSerializer(
+    DynamicFieldsSerializerMixin, serializers.ModelSerializer
+):
     class Meta:
         model = TemplateFile
         fields = (
