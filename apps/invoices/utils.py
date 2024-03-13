@@ -155,10 +155,6 @@ INDUSTRY_CHARGES_MAPPING = {
 
 
 def exclude_electricity_charges_fields(headers, template_column_mapping):
-    template_column_names = [
-        column_name.replace("`", "")
-        for column_name in template_column_mapping.values()
-    ]
     column_headers = deepcopy(headers)
     for header in [
         "Opening Reading",
@@ -180,7 +176,7 @@ def exclude_electricity_charges_fields(headers, template_column_mapping):
         "Night Rate - Unit",
         "Night Charges",
     ]:
-        if header not in template_column_names:
+        if header not in template_column_mapping:
             column_headers.pop(header, None)
     return column_headers
 

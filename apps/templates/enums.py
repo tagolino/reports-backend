@@ -9,3 +9,8 @@ class TemplateTypesEnum(models.TextChoices):
 class TemplateSubTypesEnum(models.TextChoices):
     HH = "HH"
     NHH = "NHH"
+
+
+class TemplateFileTypesEnum(models.TextChoices):
+    PDF = "PDF"
+    XLS = "XLS"

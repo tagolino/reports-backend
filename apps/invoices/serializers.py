@@ -23,23 +23,20 @@ class BillingDetailSerializer(serializers.ModelSerializer):
 class HHConsumptionChargesSerializer(serializers.ModelSerializer):
     day_consumption_value = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=3,
     )
     day_rate_value = serializers.DecimalField(max_digits=12, decimal_places=4)
-    day_charges = serializers.DecimalField(max_digits=12, decimal_places=4)
+    day_charges = serializers.FloatField()
     night_consumption_value = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=3,
     )
     night_rate_value = serializers.DecimalField(
         max_digits=12,
         decimal_places=4,
     )
-    night_charges = serializers.DecimalField(max_digits=12, decimal_places=4)
-    total_electricity_charges = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-    )
+    night_charges = serializers.FloatField()
+    total_electricity_charges = serializers.FloatField()
 
     class Meta:
         model = HHConsumptionCharges
@@ -49,14 +46,14 @@ class HHConsumptionChargesSerializer(serializers.ModelSerializer):
 class IndustryChargesSerializer(serializers.ModelSerializer):
     quantity_1_value = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=0,
     )
     quantity_2_value = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=0,
     )
     rate_value = serializers.DecimalField(max_digits=12, decimal_places=4)
-    charges = serializers.DecimalField(max_digits=12, decimal_places=4)
+    charges = serializers.FloatField()
 
     class Meta:
         model = IndustryCharges
@@ -66,24 +63,21 @@ class IndustryChargesSerializer(serializers.ModelSerializer):
 class ReadingConsumptionChargesSerializer(serializers.ModelSerializer):
     opening_reading = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=2,
     )
     last_reading = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=2,
     )
     consumption = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=3,
     )
     rate = serializers.DecimalField(
         max_digits=12,
         decimal_places=4,
     )
-    total_electricity_charges = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-    )
+    total_electricity_charges = serializers.FloatField()
 
     class Meta:
         model = ReadingConsumptionCharges
@@ -102,36 +96,21 @@ class MeterInvoiceSerializer(serializers.ModelSerializer):
     )
     levy_total = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=3,
     )
     total_levies = serializers.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=3,
     )
-    total_no_vat = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-    )
+    total_no_vat = serializers.FloatField()
     applicable_vat = serializers.DecimalField(
         max_digits=12,
         decimal_places=4,
     )
-    charged_vat = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-    )
-    bill_amount = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-    )
-    previous_balance = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-    )
-    total_amount = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-    )
+    charged_vat = serializers.FloatField()
+    bill_amount = serializers.FloatField()
+    previous_balance = serializers.FloatField()
+    total_amount = serializers.FloatField()
 
     class Meta:
         model = MeterInvoice

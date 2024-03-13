@@ -1,6 +1,8 @@
 from django.db import models
 from django_countries.fields import CountryField
 
+from .enums import TemplateFileTypesEnum
+
 
 class Country(models.Model):
     country = CountryField(blank_label="(select country)")
@@ -60,6 +62,11 @@ class TemplateFile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     version = models.IntegerField()
     file = models.FileField(upload_to="template_files/%Y/%m/")
+    file_type = models.CharField(
+        choices=TemplateFileTypesEnum.choices,
+        max_length=25,
+        default=TemplateFileTypesEnum.PDF,
+    )
     is_active = models.BooleanField(default=True)
     language = models.CharField(choices=LANGUAGE_CHOICES, max_length=32)
     external_id = models.CharField(max_length=100, null=True, blank=True)
