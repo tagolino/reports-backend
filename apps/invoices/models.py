@@ -61,15 +61,23 @@ class ReadingConsumptionCharges(models.Model):
 
 class BillingDetail(models.Model):
     billing_name = models.CharField(max_length=255, blank=True, default="")
-    billing_address = models.CharField(max_length=255, blank=True, default="")
+    billing_address_1 = models.CharField(max_length=255, blank=True, default="")
+    billing_address_2 = models.CharField(max_length=255, blank=True, default="")
+    billing_address_3 = models.CharField(max_length=255, blank=True, default="")
+    billing_address_4 = models.CharField(max_length=255, blank=True, default="")
+    billing_address_5 = models.CharField(max_length=255, blank=True, default="")
+    billing_city = models.CharField(max_length=255, blank=True, default="")
+    billing_postal_code = models.CharField(
+        max_length=255, blank=True, default=""
+    )
     site_name = models.CharField(max_length=255, blank=True, default="")
     site_address = models.CharField(max_length=255, blank=True, default="")
     vat_number = models.CharField(max_length=255, blank=True, default="")
     account_number = models.CharField(max_length=255, blank=True, default="")
     msn = models.CharField(max_length=32, blank=True, default="")
-    pc = models.CharField(max_length=255, blank=True, default="")
-    mtc = models.CharField(max_length=255, blank=True, default="")
-    llf = models.CharField(max_length=255, blank=True, default="")
+    pc = models.IntegerField(null=True)
+    mtc = models.CharField(max_length=3, default="")
+    llf = models.CharField(max_length=3, default="")
     mpan = models.CharField(
         max_length=21, db_index=True, blank=True, default=""
     )
@@ -212,7 +220,7 @@ class IndustryCharges(models.Model):
     rate_value = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
     )
-    rate_unit = models.CharField(max_length=12)
+    rate_unit = models.CharField(max_length=16)
     charges = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
     )

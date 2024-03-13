@@ -1,10 +1,14 @@
+from django.db.models import Exists, OuterRef
 from django_filters import BaseInFilter, NumberFilter
 from django_filters import rest_framework as filters
 
 from .models import (
     CustomerPortalAccountHolder,
+    CustomerPortalAsset,
     CustomerPortalECA,
     CustomerPortalElectricityContract,
+    CustomerPortalMeter,
+    CustomerPortalMpan,
 )
 
 
@@ -45,6 +49,38 @@ class CustomerPortalElectricityContractFilters(filters.FilterSet):
 
     class Meta:
         model = CustomerPortalElectricityContract
+        fields = [
+            "electricity_customer_account_ids",
+        ]
+
+
+class CustomerPortalAssetFilters(filters.FilterSet):
+    electricity_customer_account_ids = NumberInFilter(
+        method="eca_filter", lookup_expr="in"
+    )
+
+    class Meta:
+        model = CustomerPortalAsset
+        fields = [
+            "electricity_customer_account_ids",
+        ]
+
+    def eca_filter(self, queryset, name, value):
+        subquery = CustomerPortalMeter.objects.filter(
+            electricity_customer_account_id__in=value,
+            asset_id=OuterRef("pk"),
+        )
+
+        return queryset.filter(Exists(subquery))
+
+
+class CustomerPortalMpanFilters(filters.FilterSet):
+    electricity_customer_account_ids = NumberInFilter(
+        field_name="electricity_customer_account_id", lookup_expr="in"
+    )
+
+    class Meta:
+        model = CustomerPortalMpan
         fields = [
             "electricity_customer_account_ids",
         ]

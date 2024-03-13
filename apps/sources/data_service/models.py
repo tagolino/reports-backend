@@ -43,6 +43,10 @@ class DataServiceContract(models.Model):
 class DataServiceMPAN(models.Model):
     mpan = models.CharField(max_length=21, db_index=True, unique=True)
 
+    mtc = models.CharField(max_length=3, null=True)
+    pc = models.IntegerField()
+    llfc = models.CharField(max_length=3, null=True)
+
     objects = DataServiceManager()
 
     class Meta:

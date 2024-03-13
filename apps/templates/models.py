@@ -27,7 +27,18 @@ class Template(models.Model):
 
     name = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
-    type = models.CharField(choices=TYPE_CHOICES, max_length=32)
+    type = models.ForeignKey(
+        "templates.TemplateType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    sub_type = models.ForeignKey(
+        "templates.TemplateSubType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     country = models.ForeignKey(
         Country, on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -64,3 +75,19 @@ class TemplateDataMapping(models.Model):
     name = models.CharField(max_length=100)
     mapping_expression = models.JSONField(null=True, blank=True)
     template_file = models.ForeignKey(TemplateFile, on_delete=models.CASCADE)
+
+
+class TemplateType(models.Model):
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name if self.name else self.pk}"
+
+
+class TemplateSubType(models.Model):
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name if self.name else self.pk}"
