@@ -14,7 +14,6 @@ from django.utils import timezone
 from invoices.models import BillingDetail, IndustryCharges, MeterInvoice
 from invoices.utils import (
     INVOICE_EXCEL_COLUMNS,
-    compute_industry_charges_total_charges,
     exclude_electricity_charges_fields,
     get_electricity_charges,
     write_excel_row,
@@ -102,13 +101,15 @@ def create_data_file_excel(
     data = DataFileRequestDetailSerializer(data_file_request).data
     columns = list(headers.values())
 
+    related_fields = ["customer_billing_details"]
+    if excel_template_file.template.sub_type.name == TemplateSubTypesEnum.HH:
+        related_fields.append("hh_consumption_charges")
+    elif excel_template_file.template.sub_type.name == TemplateSubTypesEnum.NHH:
+        related_fields.append("reading_consumption_charges")
+
     for index, meter_invoice in enumerate(data["meter_invoices"]):
         write_excel_row(ws, row_number, columns, meter_invoice)
-        for related_field in [
-            "customer_billing_details",
-            "hh_consumption_charges",
-            "reading_consumption_charges",
-        ]:
+        for related_field in related_fields:
             if meter_invoice.get(related_field):
                 write_excel_row(
                     ws,
@@ -348,31 +349,34 @@ def process_data_file(data_file_id: int) -> None:
                     ]
                 )
 
-                total_no_vat = meter.cost or 0
-                charged_vat = total_no_vat * (
-                    billing_service_contract.vat / 100
-                )
-                bill_amount = total_no_vat + charged_vat
-
                 meter_invoice = MeterInvoice.objects.create(
                     data_file_request=data_file_request,
                     customer_billing_details=customer_billing_details,
-                    total_no_vat=total_no_vat,
-                    applicable_vat=billing_service_contract.vat / 100,
-                    charged_vat=charged_vat,
-                    previous_balance=previous_amount,
-                    bill_amount=bill_amount,
-                    total_amount=previous_amount + bill_amount,
                 )
 
-                get_electricity_charges(
+                charges = get_electricity_charges(
                     meter,
                     meter_invoice,
                     billing_service_contract,
                     customer_portal_customer_id,
+                    meters_consumption.count(),
                 )
 
-    compute_industry_charges_total_charges(data_file_request)
+                total_no_vat = (meter.cost or 0) + charges
+                charged_vat = total_no_vat * (
+                    billing_service_contract.vat / 100
+                )
+                bill_amount = total_no_vat + charged_vat
+                meter_invoice.total_no_vat = total_no_vat
+                meter_invoice.applicable_vat = (
+                    billing_service_contract.vat / 100
+                )
+                meter_invoice.charged_vat = charged_vat
+                meter_invoice.previous_balance = previous_amount
+                meter_invoice.bill_amount = bill_amount
+                meter_invoice.total_amount = previous_amount + bill_amount
+                meter_invoice.save()
+
     excel_template_file = (
         data_file_request.document_template.template_files.filter(
             file_type=TemplateFileTypesEnum.XLS, is_active=True
