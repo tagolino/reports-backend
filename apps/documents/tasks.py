@@ -324,7 +324,12 @@ def process_data_file(data_file_id: int) -> None:
                         )
                     ),
                     contract_end_at=contract.end_date,
-                    payment_due_at=period_start_at + relativedelta(days=15),
+                    payment_due_at=(
+                        today
+                        + relativedelta(
+                            days=billing_service_contract.payment_terms_due_date
+                        )
+                    ),
                 )
 
                 previous_amount = (

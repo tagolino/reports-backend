@@ -143,6 +143,8 @@ class BillingServiceContract(models.Model):
     night_time_start = models.TimeField()
     night_time_end = models.TimeField()
 
+    payment_terms_due_date = models.IntegerField()
+
     customer_portal_id = models.IntegerField()
 
     created_at = models.DateTimeField()
