@@ -76,8 +76,8 @@ class BillingDetail(models.Model):
     account_number = models.CharField(max_length=255, blank=True, default="")
     msn = models.CharField(max_length=32, blank=True, default="")
     pc = models.IntegerField(null=True)
-    mtc = models.CharField(max_length=3, default="")
-    llf = models.CharField(max_length=3, default="")
+    mtc = models.CharField(max_length=3, null=True)
+    llf = models.CharField(max_length=3, null=True)
     mpan = models.CharField(
         max_length=21, db_index=True, blank=True, default=""
     )
