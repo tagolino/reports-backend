@@ -2,8 +2,8 @@ from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime
 
-from django.db.models import DecimalField, F, Q, Sum
-from django.db.models.functions import Coalesce, Round
+from django.db.models import DecimalField, Q, Sum
+from django.db.models.functions import Coalesce
 from invoices.models import (
     HHConsumptionCharges,
     IndustryCharges,
@@ -195,8 +195,10 @@ def write_excel_row(
         except (TypeError, ValueError):
             pass
 
-        if field == "applicable_vat":
+        if field == "applicable_vat" and column_value:
             column_value = f"{int(float(column_value) * 100)}%"
+        elif field == "pc" and column_value is not None:
+            column_value = f"0{column_value}"
 
         try:
             column_number = headers.index(field) + 1
@@ -219,6 +221,7 @@ def get_mapped_json_data(mapped_data: dict, headers: list, data: dict) -> None:
         if mapped_field.lower().endswith("date") or mapped_field.lower() in [
             "bill from",
             "bill to",
+            "date of invoice",
         ]:
             try:
                 column_value = int(
@@ -226,6 +229,8 @@ def get_mapped_json_data(mapped_data: dict, headers: list, data: dict) -> None:
                 )
             except ValueError:
                 column_value = None
+        elif mapped_field.lower() == "pc" and column_value is not None:
+            column_value = str(column_value).zfill(2)
 
         mapped_data[mapped_field] = (
             column_value if column_value is not None else ""
@@ -239,7 +244,9 @@ def get_electricity_charges(
     meter_invoice: MeterInvoice,
     billing_service_contract: BillingServiceContract,
     customer_portal_customer_id: int,
+    meter_count: int,
 ) -> None:
+    total_charges = 0
     period_start_at = meter_invoice.data_file_request.period_start_at
     period_end_at = meter_invoice.data_file_request.period_end_at
     period_day_diff = (period_end_at - period_start_at).days + 1
@@ -333,13 +340,7 @@ def get_electricity_charges(
             last_reading_date=meter.last_reading_at.date(),
             consumption=meter.last_reading - meter.opening_reading,
             rate=data_service_contract_meter.day_unit_rate,
-            total_electricity_charges=(
-                (meter.last_reading - meter.opening_reading)
-                / (
-                    meter.last_reading_at.date()
-                    - meter.opening_reading_at.date()
-                ).days
-            ),
+            total_electricity_charges=meter.cost,
         )
 
         meter_invoice.reading_consumption_charges = reading_consumption_charge
@@ -360,11 +361,13 @@ def get_electricity_charges(
                 #       then create a industry charges mapping for
                 #       name, rate and unit configurations
                 rate_unit = "p/day"
+                rate_value = getattr(data_service_contract_meter, field.name)
+                charges = (rate_value * period_day_diff) / 100
                 if field.name == "distribution_charge":
                     rate_unit = "p/MPAN/day"
+                    charges = (rate_value * meter_count * period_day_diff) / 100
                 elif field.name == "transmission_charge":
                     rate_unit = "p/Per Site/day"
-                rate_value = getattr(data_service_contract_meter, field.name)
                 industry_charges.append(
                     IndustryCharges(
                         meter_invoice=meter_invoice,
@@ -374,22 +377,21 @@ def get_electricity_charges(
                         unit="Day",
                         rate_value=rate_value,
                         rate_unit=rate_unit,
-                        charges=(rate_value * period_day_diff) / 100,
+                        charges=charges,
                     )
                 )
+                total_charges += charges
             else:
+                value_charges = getattr(data_service_contract_meter, field.name)
                 industry_charges.append(
                     IndustryCharges(
                         meter_invoice=meter_invoice,
                         name=INDUSTRY_CHARGES_MAPPING[field.name],
-                        quantity_1_value=getattr(
-                            data_service_contract_meter, field.name
-                        ),
-                        charges=getattr(
-                            data_service_contract_meter, field.name
-                        ),
+                        quantity_1_value=value_charges,
+                        charges=value_charges,
                     )
                 )
+                total_charges += value_charges
         elif field.name.endswith("_levy") and getattr(
             data_service_contract_meter, field.name
         ):
@@ -399,29 +401,10 @@ def get_electricity_charges(
             )
             meter_invoice.levy_total = meter_invoice.levy_quantity
             meter_invoice.total_levies = meter_invoice.levy_quantity
+            total_charges += meter_invoice.levy_quantity
 
     IndustryCharges.objects.bulk_create(industry_charges)
     meter_invoice.data_center_contract_meter_id = data_service_contract_meter.id
     meter_invoice.save()
 
-
-def compute_industry_charges_total_charges(data_file_request):
-    # we can get here the equivalent to number of MPANs in the invoice
-    customer_billing_details = data_file_request.meter_invoices.filter(
-        customer_billing_details__isnull=False
-    )
-
-    IndustryCharges.objects.filter(
-        meter_invoice__data_file_request=data_file_request,
-        name="Distribution Fixed Charge",
-    ).update(
-        charges=Round(
-            (
-                F("rate_value")
-                * customer_billing_details.count()
-                * F("quantity_1_value")
-            )
-            / 100,
-            precision=4,
-        )
-    )
+    return total_charges

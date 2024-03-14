@@ -5,6 +5,7 @@ from invoices.models import IndustryCharges
 from invoices.serializers import MeterInvoiceSerializer
 from invoices.utils import INVOICE_EXCEL_COLUMNS, get_mapped_json_data
 from rest_framework import serializers
+from templates.enums import TemplateSubTypesEnum
 from templates.models import TemplateDataMapping
 from templates.serializers import TemplateDetailsSerializer
 from users.serializers import CreatedBySerializer
@@ -122,6 +123,18 @@ class CreateDocumentSerializer(serializers.Serializer):
                     "Data file request not found."
                 )
 
+            related_fields = ["customer_billing_details"]
+            if (
+                data_file_request.document_template.sub_type.name
+                == TemplateSubTypesEnum.HH
+            ):
+                related_fields.append("hh_consumption_charges")
+            elif (
+                data_file_request.document_template.sub_type.name
+                == TemplateSubTypesEnum.NHH
+            ):
+                related_fields.append("reading_consumption_charges")
+
             data_file_record = DataFileRequestDetailSerializer(
                 data_file_request
             ).data
@@ -130,11 +143,7 @@ class CreateDocumentSerializer(serializers.Serializer):
                 json_datum = get_mapped_json_data(
                     {}, INVOICE_EXCEL_COLUMNS, meter_invoice
                 )
-                for related_field in [
-                    "customer_billing_details",
-                    "hh_consumption_charges",
-                    "reading_consumption_charges",
-                ]:
+                for related_field in related_fields:
                     if meter_invoice.get(related_field):
                         json_datum = get_mapped_json_data(
                             json_datum,
