@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .enums import TemplateFileTypesEnum
-from .models import Supplier, Template, TemplateFile
+from .models import Supplier, Template, TemplateFile, TemplateType
 
 
 class DynamicFieldsSerializerMixin(object):
@@ -23,10 +23,17 @@ class SupplierListSerializer(serializers.ModelSerializer):
         fields = ("id", "name")
 
 
+class TemplateTypeListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TemplateType
+        fields = ("id", "name")
+
+
 class TemplateListSerializer(serializers.ModelSerializer):
     supplier = SupplierListSerializer()
     is_active = serializers.SerializerMethodField()
     template_file = serializers.SerializerMethodField()
+    type = serializers.CharField(source="type.name", default=None)
 
     class Meta:
         model = Template

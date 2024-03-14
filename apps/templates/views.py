@@ -3,12 +3,19 @@ from rest_framework import status
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 
-from .models import Supplier, Template, TemplateDataMapping, TemplateFile
+from .models import (
+    Supplier,
+    Template,
+    TemplateDataMapping,
+    TemplateFile,
+    TemplateType,
+)
 from .serializers import (
     CreateTemplateSerializer,
     SupplierListSerializer,
     TemplateDetailsSerializer,
     TemplateListSerializer,
+    TemplateTypeListSerializer,
 )
 from .utils import add_template
 
@@ -16,6 +23,12 @@ from .utils import add_template
 class SupplierView(ListAPIView):
     queryset = Supplier.objects.all()
     serializer_class = SupplierListSerializer
+
+
+class TemplateTypeView(ListAPIView):
+    queryset = TemplateType.objects.all()
+    serializer_class = TemplateTypeListSerializer
+    pagination_class = None
 
 
 class TemplateView(CreateAPIView, ListAPIView):
