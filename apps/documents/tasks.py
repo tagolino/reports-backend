@@ -19,8 +19,7 @@ from invoices.utils import (
     get_electricity_charges,
     write_excel_row,
 )
-from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl import load_workbook
 from sources.billing_service.models import BillingServiceContract
 from sources.customer_portal.enums import ElectricityBillStatusEnum
 from sources.customer_portal.models import (
@@ -29,7 +28,8 @@ from sources.customer_portal.models import (
     CustomerPortalElectricityContract,
 )
 from sources.data_service.models import DataServiceMPAN
-from templates.enums import TemplateSubTypesEnum
+from templates.enums import TemplateFileTypesEnum, TemplateSubTypesEnum
+from templates.models import TemplateFile
 
 from celery import shared_task
 
@@ -84,24 +84,19 @@ def process_document_generation_request(document_id):
         entry.save()
 
 
-def create_data_file_excel(data_file_request: DataFileRequest):
-    wb = Workbook()
+def create_data_file_excel(
+    data_file_request: DataFileRequest,
+    excel_template_file: TemplateFile,
+):
+    wb = load_workbook(excel_template_file.file.path)
     ws = wb.active
     row_number = 1
 
     headers = exclude_electricity_charges_fields(
         INVOICE_EXCEL_COLUMNS,
-        (
-            data_file_request.document_template.template_files.first()
-            .templatedatamapping_set.first()
-            .mapping_expression
-        ),
+        [cell.value for cell in ws[1]],
     )
 
-    for index, header in enumerate(headers):
-        ws.cell(row=row_number, column=index + 1, value=header).font = Font(
-            bold=True
-        )
     row_number += 1
 
     data = DataFileRequestDetailSerializer(data_file_request).data
@@ -373,4 +368,10 @@ def process_data_file(data_file_id: int) -> None:
                 )
 
     compute_industry_charges_total_charges(data_file_request)
-    create_data_file_excel(data_file_request)
+    excel_template_file = (
+        data_file_request.document_template.template_files.filter(
+            file_type=TemplateFileTypesEnum.XLS, is_active=True
+        ).last()
+    )
+    if excel_template_file and excel_template_file.file:
+        create_data_file_excel(data_file_request, excel_template_file)

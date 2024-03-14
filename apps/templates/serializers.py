@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from .enums import TemplateFileTypesEnum
 from .models import Supplier, Template, TemplateFile
 
 
@@ -40,7 +41,9 @@ class TemplateListSerializer(serializers.ModelSerializer):
         )
 
     def get_is_active(self, instance):
-        last_template_file = instance.template_files.last()
+        last_template_file = instance.template_files.filter(
+            file_type=TemplateFileTypesEnum.PDF
+        ).last()
 
         if last_template_file:
             return last_template_file.is_active
@@ -48,7 +51,9 @@ class TemplateListSerializer(serializers.ModelSerializer):
         return False
 
     def get_template_file(self, instance):
-        last_template_file = instance.template_files.last()
+        last_template_file = instance.template_files.filter(
+            file_type=TemplateFileTypesEnum.PDF
+        ).last()
 
         if not last_template_file:
             return None
