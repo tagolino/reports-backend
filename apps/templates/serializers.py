@@ -109,4 +109,4 @@ class CreateTemplateSerializer(serializers.Serializer):
     file = serializers.FileField()
     is_active = serializers.BooleanField()
     type = serializers.IntegerField()
-    sub_type = serializers.IntegerField()
+    sub_type = serializers.IntegerField(required=False)

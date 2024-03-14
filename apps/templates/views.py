@@ -63,9 +63,10 @@ class TemplateView(CreateAPIView, ListAPIView):
         template_id = response["data"]["templateId"]
 
         with transaction.atomic():
+            template_type_object = TemplateType.objects.get(id=template_type)
             new_template_object = Template.objects.create(
                 name=template_name,
-                type=template_type,
+                type=template_type_object,
                 sub_type=template_sub_type,
             )
             new_template_file = TemplateFile.objects.create(

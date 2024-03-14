@@ -3,7 +3,6 @@ from datetime import datetime
 from io import BytesIO
 
 import pandas
-from dateutil import parser
 from templates.jmespath import search
 
 minimum_timestamp = datetime(2000, 1, 1).timestamp()
@@ -12,7 +11,7 @@ minimum_timestamp = datetime(2000, 1, 1).timestamp()
 def parse_value(value):
     if isinstance(value, str):
         try:
-            date = parser.parse(value, dayfirst=True)
+            date = datetime.strptime(value, "%d/%m/%Y").date()
             timestamp = int(date.timestamp())
 
             if timestamp >= minimum_timestamp:
