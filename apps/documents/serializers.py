@@ -59,7 +59,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
             return TemplateDetailsSerializer(
                 template, fields=["id", "name"]
             ).data
-        except KeyError:
+        except AttributeError:
             return None
 
     def get_data_file(self, instance):
