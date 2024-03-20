@@ -7,7 +7,6 @@ from invoices.utils import INVOICE_EXCEL_COLUMNS, get_mapped_json_data
 from rest_framework import serializers
 from templates.enums import TemplateSubTypesEnum
 from templates.models import TemplateDataMapping
-from templates.serializers import TemplateDetailsSerializer
 from users.serializers import CreatedBySerializer
 
 from .models import (
@@ -61,6 +60,8 @@ class DocumentListSerializer(serializers.ModelSerializer):
         )
 
     def get_template(self, instance):
+        from templates.serializers import TemplateDetailsSerializer
+
         try:
             template = instance.template_data_mapping.template_file.template
 
@@ -79,6 +80,38 @@ class DocumentListSerializer(serializers.ModelSerializer):
             ).data
         except AttributeError:
             return None
+
+
+class TemplateDocumentsListSerializer(serializers.ModelSerializer):
+    documents_count = serializers.SerializerMethodField()
+    data_file = serializers.SerializerMethodField()
+    created_by = serializers.CharField(source="created_by.email", default=None)
+
+    class Meta:
+        model = Document
+        fields = (
+            "id",
+            "name",
+            "created_at",
+            "documents_count",
+            "is_production",
+            "is_customer",
+            "created_by",
+            "data_file",
+        )
+
+    def get_documents_count(self, instance):
+        return instance.generated_documents.count()
+
+    def get_data_file(self, instance):
+        last_data_file = instance.data_documents.last()
+
+        if last_data_file:
+            return DocumentDataFileSerializer(
+                last_data_file, fields=["name", "file"]
+            ).data
+
+        return None
 
 
 class DataFileRequestDetailSerializer(serializers.ModelSerializer):
