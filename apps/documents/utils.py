@@ -22,6 +22,9 @@ def parse_value(value):
     if isinstance(value, pandas.Timestamp):
         return int(value.timestamp() * 1000)
 
+    if isinstance(value, int):
+        return str(value)
+
     return value
 
 
