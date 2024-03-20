@@ -50,7 +50,15 @@ class DocumentListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Document
-        fields = ("id", "name", "created_at", "template", "data_file")
+        fields = (
+            "id",
+            "name",
+            "created_at",
+            "template",
+            "data_file",
+            "is_production",
+            "is_customer",
+        )
 
     def get_template(self, instance):
         try:
@@ -69,7 +77,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
             return DocumentDataFileSerializer(
                 last_data_file, fields=["name", "file"]
             ).data
-        except KeyError:
+        except AttributeError:
             return None
 
 
@@ -84,6 +92,7 @@ class DataFileRequestDetailSerializer(serializers.ModelSerializer):
 class CreateDocumentSerializer(serializers.Serializer):
     name = serializers.CharField()
     template_id = serializers.IntegerField()
+    is_customer = serializers.BooleanField()
     is_production = serializers.BooleanField()
 
     def validate(self, attrs):
@@ -103,6 +112,7 @@ class CreateDocumentSerializer(serializers.Serializer):
         data_file_id = self.initial_data["data_file_id"]
         document_name = validated_data["name"]
         template_id = validated_data["template_id"]
+        is_customer = validated_data["is_customer"]
         is_production = validated_data["is_production"]
 
         try:
@@ -204,6 +214,9 @@ class CreateDocumentSerializer(serializers.Serializer):
             new_document_object = Document.objects.create(
                 name=document_name,
                 template_data_mapping=template_data_mapping,
+                is_production=is_production,
+                is_customer=is_customer,
+                created_by=self.context["request"].user,
             )
 
             if data_file_id:
@@ -223,7 +236,6 @@ class CreateDocumentSerializer(serializers.Serializer):
                 DocumentGenerationRequest.objects.create(
                     name=f"{document_name} - {index + 1}",
                     document=new_document_object,
-                    is_production=is_production,
                     json_data=json_data[index],
                 )
 
@@ -252,6 +264,8 @@ class DocumentDetailsSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "created_at",
+            "is_production",
+            "is_customer",
             "data_documents",
             "generated_documents",
         )

@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 def process_document_generation_request(document_id):
     document = Document.objects.get(id=document_id)
     template_data_mapping = document.template_data_mapping
+    is_production = document.is_production
     mapping_expression = template_data_mapping.mapping_expression
     template_id = template_data_mapping.template_file.external_id
     csdk_test = carbone_sdk.CarboneSDK(settings.CARBONE_IO_API_TEST_TOKEN)
@@ -59,7 +60,7 @@ def process_document_generation_request(document_id):
         }
 
         try:
-            if entry.is_production:
+            if is_production:
                 report_bytes, _ = csdk_production.render(template_id, json_data)
             else:
                 report_bytes, _ = csdk_test.render(template_id, json_data)

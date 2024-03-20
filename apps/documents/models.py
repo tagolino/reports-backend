@@ -7,8 +7,13 @@ from .enums import ActionTypesEnum
 class Document(models.Model):
     name = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_production = models.BooleanField(default=False)
+    is_customer = models.BooleanField(default=False)
     template_data_mapping = models.ForeignKey(
         "templates.TemplateDataMapping", on_delete=models.SET_NULL, null=True
+    )
+    created_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True
     )
 
 
@@ -45,12 +50,10 @@ class DocumentGenerationRequest(models.Model):
         choices=STATUS_CHOICES, max_length=32, default=PENDING
     )
     error = models.TextField()
-    is_production = models.BooleanField(null=True, default=False)
     json_data = models.JSONField(null=True, default=None)
     document = models.ForeignKey(
         Document, on_delete=models.CASCADE, related_name="generated_documents"
     )
-    user = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True)
 
 
 class DataFileRequest(models.Model):

@@ -21,7 +21,7 @@ class DocumentDataFileInline(admin.TabularInline):
 
 class DocumentGenerationRequestInline(admin.TabularInline):
     model = DocumentGenerationRequest
-    readonly_fields = ["name", "status", "file", "error", "user"]
+    readonly_fields = ["name", "status", "file", "error"]
     exclude = ["json_data"]
 
     def has_add_permission(self, request, obj):
