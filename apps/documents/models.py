@@ -57,6 +57,16 @@ class DocumentGenerationRequest(models.Model):
 
 
 class DataFileRequest(models.Model):
+    PENDING = "PENDING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+    STATUS_CHOICES = (
+        (PENDING, "Pending"),
+        (SUCCEEDED, "Succeeded"),
+        (FAILED, "Failed"),
+    )
+
     action_type = models.CharField(
         choices=ActionTypesEnum.choices,
         max_length=45,
@@ -88,6 +98,10 @@ class DataFileRequest(models.Model):
         related_name="data_file_requests",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        choices=STATUS_CHOICES, max_length=32, default=PENDING
+    )
+    error = models.TextField(null=True)
 
     class Meta:
         db_table = "data_file_requests"

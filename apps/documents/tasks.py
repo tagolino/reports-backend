@@ -162,226 +162,247 @@ def create_data_file_excel(
 @shared_task
 def process_data_file(data_file_id: int) -> None:
     data_file_request = DataFileRequest.objects.get(pk=data_file_id)
-    template_sub_type = data_file_request.document_template.sub_type
-    period_start_at = data_file_request.period_start_at
-    period_end_at = data_file_request.period_end_at
-    today = timezone.now()
 
-    filters = {}
-    contract_filters = {}
-    meter_filters = {}
-    if data_file_request.electricity_customer_accounts:
-        filters["pk__in"] = [
-            data["id"]
-            for data in data_file_request.electricity_customer_accounts
-        ]
-    if data_file_request.account_holders:
-        filters["account_holder_id__in"] = [
-            data["id"] for data in data_file_request.account_holders
-        ]
-    if data_file_request.customers:
-        filters["account_holder__customer_id__in"] = [
-            data["id"] for data in data_file_request.customers
-        ]
-    if data_file_request.contracts:
-        contract_filters["pk__in"] = [
-            data["id"] for data in data_file_request.contracts
-        ]
-    if data_file_request.sites:
-        meter_filters["asset_id__in"] = [
-            data["id"] for data in data_file_request.sites
-        ]
-    if data_file_request.mpans:
-        meter_filters["mpan_id__in"] = [
-            data["id"] for data in data_file_request.mpans
-        ]
+    try:
+        template_sub_type = data_file_request.document_template.sub_type
+        period_start_at = data_file_request.period_start_at
+        period_end_at = data_file_request.period_end_at
+        today = timezone.now()
 
-    for electricity_customer_account in CustomerPortalECA.objects.filter(
-        **filters
-    ):
-        customer_portal_customer_id = (
-            electricity_customer_account.account_holder.customer_id
-        )
-        meters_consumption = electricity_customer_account.active_meters.filter(
-            is_smart_meter=template_sub_type.name == TemplateSubTypesEnum.HH,
-            **meter_filters,
-        ).annotate(
-            consumption=Sum(
-                "consumptions__consumption",
-                filter=Q(
-                    consumptions__created_at__date__gte=period_start_at,
-                    consumptions__created_at__date__lte=period_end_at,
-                ),
-            ),
-            cost=Sum(
-                "consumptions__cost",
-                filter=Q(
-                    consumptions__created_at__date__gte=period_start_at,
-                    consumptions__created_at__date__lte=period_end_at,
-                ),
-            ),
-            opening_reading=Min(
-                "consumptions__reading",
-                filter=Q(
-                    consumptions__created_at__date__gte=period_start_at,
-                    consumptions__created_at__date__lte=period_end_at,
-                ),
-            ),
-            opening_reading_at=Min(
-                "consumptions__created_at",
-                filter=Q(
-                    consumptions__created_at__date__gte=period_start_at,
-                    consumptions__created_at__date__lte=period_end_at,
-                ),
-            ),
-            last_reading=Max(
-                "consumptions__reading",
-                filter=Q(
-                    consumptions__created_at__date__gte=period_start_at,
-                    consumptions__created_at__date__lte=period_end_at,
-                ),
-            ),
-            last_reading_at=Max(
-                "consumptions__created_at",
-                filter=Q(
-                    consumptions__created_at__date__gte=period_start_at,
-                    consumptions__created_at__date__lte=period_end_at,
-                ),
-            ),
-        )
+        filters = {}
+        contract_filters = {}
+        meter_filters = {}
+        if data_file_request.electricity_customer_accounts:
+            filters["pk__in"] = [
+                data["id"]
+                for data in data_file_request.electricity_customer_accounts
+            ]
+        if data_file_request.account_holders:
+            filters["account_holder_id__in"] = [
+                data["id"] for data in data_file_request.account_holders
+            ]
+        if data_file_request.customers:
+            filters["account_holder__customer_id__in"] = [
+                data["id"] for data in data_file_request.customers
+            ]
+        if data_file_request.contracts:
+            contract_filters["pk__in"] = [
+                data["id"] for data in data_file_request.contracts
+            ]
+        if data_file_request.sites:
+            meter_filters["asset_id__in"] = [
+                data["id"] for data in data_file_request.sites
+            ]
+        if data_file_request.mpans:
+            meter_filters["mpan_id__in"] = [
+                data["id"] for data in data_file_request.mpans
+            ]
 
-        for index, meter in enumerate(meters_consumption):
-            # TODO: splitting of HH and non-HH meters
-            active_contracts = CustomerPortalElectricityContract.objects.filter(
-                is_active=True,
-                end_date__gt=today,
-                account__active_meters__pk=meter.id,
-                **contract_filters,
-            ).distinct()
-            for contract in active_contracts:
-                try:
-                    billing_service_contract = BillingServiceContract.objects.get(
-                        account__customer__customer_portal_id=customer_portal_customer_id,
-                        name=contract.name,
-                        customer_portal_id=contract.id,
-                    )
-                except (
-                    BillingServiceContract.DoesNotExist,
-                    BillingServiceContract.MultipleObjectsReturned,
-                ) as e:
-                    logger.error(
-                        f"Contract exception for MPAN: {meter.mpan.mpan} -- {e}"
-                    )
-                    continue
-
-                contract_name = (
-                    billing_service_contract.name.replace("-", "")
-                    if billing_service_contract.name
-                    else f"{billing_service_contract.id}"
-                )
-                invoice_number = f"{contract_name}{today:%y%m}-{index + 1}"
-
-                meter_mpan = getattr(meter.mpan, "mpan", "")
-                data_service_mpan = DataServiceMPAN.objects.filter(
-                    mpan=meter_mpan
-                )
-                data_service_mpan = (
-                    data_service_mpan.values("mtc", "pc", "llfc").first()
-                    if data_service_mpan.exists()
-                    else {}
-                )
-
-                customer_billing_details = BillingDetail.objects.create(
-                    invoice_number=invoice_number,
-                    billing_name=billing_service_contract.account.billing_name,
-                    billing_address_1=billing_service_contract.account.billing_address_1,
-                    billing_address_2=billing_service_contract.account.billing_address_2,
-                    billing_address_3=billing_service_contract.account.billing_address_3,
-                    billing_address_4=billing_service_contract.account.billing_address_4,
-                    billing_address_5=billing_service_contract.account.billing_address_5,
-                    billing_city=billing_service_contract.account.billing_city,
-                    billing_postal_code=billing_service_contract.account.billing_postal_code,
-                    site_name=getattr(meter.asset, "name", ""),
-                    site_address=getattr(meter.asset, "address", ""),
-                    vat_number=getattr(
-                        billing_service_contract, "vat_number", ""
-                    ),
-                    account_number=getattr(contract, "name", "") or "",
-                    msn=getattr(meter.device, "serial_number", ""),
-                    mpan=meter_mpan,
-                    mtc=data_service_mpan.get("mtc"),
-                    pc=data_service_mpan.get("pc"),
-                    llf=data_service_mpan.get("llfc"),
-                    invoice_at=today,
-                    bill_from_at=(
-                        timezone.make_aware(
-                            datetime.combine(
-                                period_start_at, datetime.min.time()
-                            )
-                        )
-                    ),
-                    bill_to_at=(
-                        timezone.make_aware(
-                            datetime.combine(period_end_at, datetime.min.time())
-                        )
-                    ),
-                    contract_end_at=contract.end_date,
-                    payment_due_at=(
-                        today
-                        + relativedelta(
-                            days=billing_service_contract.payment_terms_due_date
-                        )
-                    ),
-                )
-
-                previous_amount = (
-                    CustomerPortalElectricityBillMeter.objects.filter(
-                        meter=meter,
-                        bill__status__in=[
-                            ElectricityBillStatusEnum.PENDING,
-                            ElectricityBillStatusEnum.OVERDUE,
-                        ],
-                    ).aggregate(
-                        previous_amount=Coalesce(
-                            Sum("total"), 0, output_field=DecimalField()
+        for electricity_customer_account in CustomerPortalECA.objects.filter(
+            **filters
+        ):
+            customer_portal_customer_id = (
+                electricity_customer_account.account_holder.customer_id
+            )
+            meters_consumption = (
+                electricity_customer_account.active_meters.filter(
+                    is_smart_meter=template_sub_type.name
+                    == TemplateSubTypesEnum.HH
+                    if template_sub_type
+                    else True,
+                    **meter_filters,
+                ).annotate(
+                    consumption=Sum(
+                        "consumptions__consumption",
+                        filter=Q(
+                            consumptions__created_at__date__gte=period_start_at,
+                            consumptions__created_at__date__lte=period_end_at,
                         ),
-                    )[
-                        "previous_amount"
-                    ]
+                    ),
+                    cost=Sum(
+                        "consumptions__cost",
+                        filter=Q(
+                            consumptions__created_at__date__gte=period_start_at,
+                            consumptions__created_at__date__lte=period_end_at,
+                        ),
+                    ),
+                    opening_reading=Min(
+                        "consumptions__reading",
+                        filter=Q(
+                            consumptions__created_at__date__gte=period_start_at,
+                            consumptions__created_at__date__lte=period_end_at,
+                        ),
+                    ),
+                    opening_reading_at=Min(
+                        "consumptions__created_at",
+                        filter=Q(
+                            consumptions__created_at__date__gte=period_start_at,
+                            consumptions__created_at__date__lte=period_end_at,
+                        ),
+                    ),
+                    last_reading=Max(
+                        "consumptions__reading",
+                        filter=Q(
+                            consumptions__created_at__date__gte=period_start_at,
+                            consumptions__created_at__date__lte=period_end_at,
+                        ),
+                    ),
+                    last_reading_at=Max(
+                        "consumptions__created_at",
+                        filter=Q(
+                            consumptions__created_at__date__gte=period_start_at,
+                            consumptions__created_at__date__lte=period_end_at,
+                        ),
+                    ),
                 )
+            )
 
-                meter_invoice = MeterInvoice.objects.create(
-                    data_file_request=data_file_request,
-                    customer_billing_details=customer_billing_details,
+            for index, meter in enumerate(meters_consumption):
+                # TODO: splitting of HH and non-HH meters
+                active_contracts = (
+                    CustomerPortalElectricityContract.objects.filter(
+                        is_active=True,
+                        end_date__gt=today,
+                        account__active_meters__pk=meter.id,
+                        **contract_filters,
+                    ).distinct()
                 )
+                for contract in active_contracts:
+                    try:
+                        billing_service_contract = BillingServiceContract.objects.get(
+                            account__customer__customer_portal_id=customer_portal_customer_id,
+                            name=contract.name,
+                            customer_portal_id=contract.id,
+                        )
+                    except (
+                        BillingServiceContract.DoesNotExist,
+                        BillingServiceContract.MultipleObjectsReturned,
+                        Exception,
+                    ) as e:
+                        logger.error(
+                            f"Contract exception for MPAN: {meter.mpan.mpan} -- {e}"
+                        )
+                        continue
 
-                charges = get_electricity_charges(
-                    meter,
-                    meter_invoice,
-                    billing_service_contract,
-                    customer_portal_customer_id,
-                    meters_consumption.count(),
-                )
+                    contract_name = (
+                        billing_service_contract.name.replace("-", "")
+                        if billing_service_contract.name
+                        else f"{billing_service_contract.id}"
+                    )
+                    invoice_number = f"{contract_name}{today:%y%m}-{index + 1}"
 
-                total_no_vat = (meter.cost or 0) + charges
-                charged_vat = total_no_vat * (
-                    billing_service_contract.vat / 100
-                )
-                bill_amount = total_no_vat + charged_vat
-                meter_invoice.total_no_vat = total_no_vat
-                meter_invoice.applicable_vat = (
-                    billing_service_contract.vat / 100
-                )
-                meter_invoice.charged_vat = charged_vat
-                meter_invoice.previous_balance = previous_amount
-                meter_invoice.bill_amount = bill_amount
-                meter_invoice.total_amount = previous_amount + bill_amount
-                meter_invoice.save()
+                    meter_mpan = getattr(meter.mpan, "mpan", "")
+                    data_service_mpan = DataServiceMPAN.objects.filter(
+                        mpan=meter_mpan
+                    )
+                    data_service_mpan = (
+                        data_service_mpan.values("mtc", "pc", "llfc").first()
+                        if data_service_mpan.exists()
+                        else {}
+                    )
 
-    excel_template_file = (
-        data_file_request.document_template.template_files.filter(
-            file_type=TemplateFileTypesEnum.XLS, is_active=True
-        ).last()
-    )
-    if excel_template_file and excel_template_file.file:
-        create_data_file_excel(data_file_request, excel_template_file)
+                    customer_billing_details = BillingDetail.objects.create(
+                        invoice_number=invoice_number,
+                        billing_name=billing_service_contract.account.billing_name,
+                        billing_address_1=billing_service_contract.account.billing_address_1,
+                        billing_address_2=billing_service_contract.account.billing_address_2,
+                        billing_address_3=billing_service_contract.account.billing_address_3,
+                        billing_address_4=billing_service_contract.account.billing_address_4,
+                        billing_address_5=billing_service_contract.account.billing_address_5,
+                        billing_city=billing_service_contract.account.billing_city,
+                        billing_postal_code=billing_service_contract.account.billing_postal_code,
+                        site_name=getattr(meter.asset, "name", ""),
+                        site_address=getattr(meter.asset, "address", ""),
+                        vat_number=getattr(
+                            billing_service_contract, "vat_number", ""
+                        ),
+                        account_number=getattr(contract, "name", "") or "",
+                        msn=getattr(meter.device, "serial_number", ""),
+                        mpan=meter_mpan,
+                        mtc=data_service_mpan.get("mtc"),
+                        pc=data_service_mpan.get("pc"),
+                        llf=data_service_mpan.get("llfc"),
+                        invoice_at=today,
+                        bill_from_at=(
+                            timezone.make_aware(
+                                datetime.combine(
+                                    period_start_at, datetime.min.time()
+                                )
+                            )
+                        ),
+                        bill_to_at=(
+                            timezone.make_aware(
+                                datetime.combine(
+                                    period_end_at, datetime.min.time()
+                                )
+                            )
+                        ),
+                        contract_end_at=contract.end_date,
+                        payment_due_at=(
+                            today
+                            + relativedelta(
+                                days=billing_service_contract.payment_terms_due_date
+                            )
+                        ),
+                    )
+
+                    previous_amount = (
+                        CustomerPortalElectricityBillMeter.objects.filter(
+                            meter=meter,
+                            bill__status__in=[
+                                ElectricityBillStatusEnum.PENDING,
+                                ElectricityBillStatusEnum.OVERDUE,
+                            ],
+                        ).aggregate(
+                            previous_amount=Coalesce(
+                                Sum("total"), 0, output_field=DecimalField()
+                            ),
+                        )[
+                            "previous_amount"
+                        ]
+                    )
+
+                    meter_invoice = MeterInvoice.objects.create(
+                        data_file_request=data_file_request,
+                        customer_billing_details=customer_billing_details,
+                    )
+
+                    charges = get_electricity_charges(
+                        meter,
+                        meter_invoice,
+                        billing_service_contract,
+                        customer_portal_customer_id,
+                        meters_consumption.count(),
+                    )
+
+                    total_no_vat = (meter.cost or 0) + charges
+                    charged_vat = total_no_vat * (
+                        billing_service_contract.vat / 100
+                    )
+                    bill_amount = total_no_vat + charged_vat
+                    meter_invoice.total_no_vat = total_no_vat
+                    meter_invoice.applicable_vat = (
+                        billing_service_contract.vat / 100
+                    )
+                    meter_invoice.charged_vat = charged_vat
+                    meter_invoice.previous_balance = previous_amount
+                    meter_invoice.bill_amount = bill_amount
+                    meter_invoice.total_amount = previous_amount + bill_amount
+                    meter_invoice.save()
+
+        excel_template_file = (
+            data_file_request.document_template.template_files.filter(
+                file_type=TemplateFileTypesEnum.XLS, is_active=True
+            ).last()
+        )
+        if excel_template_file and excel_template_file.file:
+            create_data_file_excel(data_file_request, excel_template_file)
+    except Exception as err:
+        data_file_request.status = DocumentGenerationRequest.FAILED
+        data_file_request.error = err
+        data_file_request.save()
+
+        return
+
+    data_file_request.status = DocumentGenerationRequest.SUCCEEDED
+    data_file_request.save()
