@@ -1,5 +1,3 @@
-from documents.models import Document
-from documents.serializers import TemplateDocumentsListSerializer
 from rest_framework import serializers
 
 from .enums import TemplateFileTypesEnum
@@ -92,7 +90,6 @@ class TemplateDetailsSerializer(
     DynamicFieldsSerializerMixin, serializers.ModelSerializer
 ):
     template_files = TemplateFileSerializer(many=True)
-    actions = serializers.SerializerMethodField()
     type = serializers.CharField(source="type.name", default=None)
     sub_type = serializers.CharField(source="sub_type.name", default=None)
 
@@ -107,15 +104,7 @@ class TemplateDetailsSerializer(
             "country",
             "supplier",
             "template_files",
-            "actions",
         )
-
-    def get_actions(self, instance):
-        actions = Document.objects.filter(
-            template_data_mapping__template_file__id=instance.id
-        )
-
-        return TemplateDocumentsListSerializer(actions, many=True).data
 
 
 class CreateTemplateSerializer(serializers.Serializer):

@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from django.db.models import Count
 from django.http import HttpResponse
 from django.utils import timezone
 from invoices.models import IndustryCharges
@@ -39,11 +40,29 @@ class DocumentView(ListCreateAPIView):
         elif self.request.method == "POST":
             return CreateDocumentSerializer
 
+    def get(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(
+            self.get_queryset().annotate(
+                documents_count=Count("generated_documents")
+            )
+        )
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
+
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
         process_document_generation_request.delay(instance.id)
+
         return Response(
             DocumentDetailsSerializer(instance).data, status.HTTP_201_CREATED
         )
